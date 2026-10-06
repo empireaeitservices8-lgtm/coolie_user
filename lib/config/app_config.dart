@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:PROJECT_NAME_PLACEHOLDER/utils/enums.dart';
+import 'package:cooli/utils/enums.dart';
 
 class AppConfig {
-  static const appName = "APP_NAME_PLACEHOLDER";
-  static const bundleId = "BUNDLE_ID_PLACEHOLDER";
-  static const designWidth = WIDTH_PLACEHOLDER;
-  static const designHeight = HEIGHT_PLACEHOLDER;
+  static const appName = "Cooli";
+  static const bundleId = "com.cooli.app";
+  static const designWidth = 375;
+  static const designHeight = 812;
 
   static final GlobalKey<NavigatorState> navKey = GlobalKey<NavigatorState>();
   GlobalKey bottomNavigationKey = GlobalKey();

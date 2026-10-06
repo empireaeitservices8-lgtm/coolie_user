@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:PROJECT_NAME_PLACEHOLDER/models/app_error_model.dart';
+import 'package:cooli/models/app_error_model.dart';
 
 import '/utils/exceptions.dart';
 import 'package:flutter/material.dart';

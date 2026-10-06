@@ -1,5 +1,5 @@
-import 'package:PROJECT_NAME_PLACEHOLDER/config/app_config.dart';
-import 'package:PROJECT_NAME_PLACEHOLDER/utils/enums.dart';
+import 'package:cooli/config/app_config.dart';
+import 'package:cooli/utils/enums.dart';
 
 class UrlHelpers {
   static EnumBuildEnvironment get server => AppConfig.server;

@@ -1,16 +1,16 @@
 import 'dart:async';
 
-import 'package:PROJECT_NAME_PLACEHOLDER/features/splashscreen/view_model/splash_view_model.dart';
-import 'package:PROJECT_NAME_PLACEHOLDER/providers/language_provider.dart';
-import 'package:PROJECT_NAME_PLACEHOLDER/providers/theme_provider.dart';
-import 'package:PROJECT_NAME_PLACEHOLDER/utils/brand_colors.dart';
-import 'package:PROJECT_NAME_PLACEHOLDER/utils/styles.dart';
-import 'package:PROJECT_NAME_PLACEHOLDER/widgets/app_button_widget.dart';
-import 'package:PROJECT_NAME_PLACEHOLDER/widgets/app_custom_text_field.dart';
-import 'package:PROJECT_NAME_PLACEHOLDER/widgets/app_progress_widget.dart';
-import 'package:PROJECT_NAME_PLACEHOLDER/widgets/app_radio_button_widget.dart';
-import 'package:PROJECT_NAME_PLACEHOLDER/widgets/custom_app_bar.dart';
-import 'package:PROJECT_NAME_PLACEHOLDER/widgets/custom_checkbox_widget.dart';
+import 'package:cooli/features/splashscreen/view_model/splash_view_model.dart';
+import 'package:cooli/providers/language_provider.dart';
+import 'package:cooli/providers/theme_provider.dart';
+import 'package:cooli/utils/brand_colors.dart';
+import 'package:cooli/utils/styles.dart';
+import 'package:cooli/widgets/app_button_widget.dart';
+import 'package:cooli/widgets/app_custom_text_field.dart';
+import 'package:cooli/widgets/app_progress_widget.dart';
+import 'package:cooli/widgets/app_radio_button_widget.dart';
+import 'package:cooli/widgets/custom_app_bar.dart';
+import 'package:cooli/widgets/custom_checkbox_widget.dart';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';

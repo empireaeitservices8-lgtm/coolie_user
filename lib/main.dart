@@ -1,8 +1,8 @@
 import 'package:adaptive_theme/adaptive_theme.dart';
-import 'package:PROJECT_NAME_PLACEHOLDER/config/app_config.dart';
-import 'package:PROJECT_NAME_PLACEHOLDER/l10n/app_localizations.dart';
+import 'package:cooli/config/app_config.dart';
+import 'package:cooli/l10n/app_localizations.dart';
 
-import 'package:PROJECT_NAME_PLACEHOLDER/utils/extensions.dart';
+import 'package:cooli/utils/extensions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,7 +11,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'package:provider/provider.dart';
 
-import 'features/splashscreen/view/splashscreen.dart';
 import 'providers/language_provider.dart';
 import 'providers/theme_provider.dart';
 import 'utils/interceptors.dart';
@@ -46,7 +45,7 @@ class MyApp extends StatelessWidget {
           AppConfig.designHeight.toDouble(),
         ),
         builder: (context, child) => AdaptiveTheme(
-          initial: AdaptiveThemeMode.dark,
+          initial: AdaptiveThemeMode.light,
           light: appLightTheme,
           dark: appDarkTheme,
           builder: (theme, darkTheme) {
@@ -74,9 +73,7 @@ class MyApp extends StatelessWidget {
               ),
               locale: context.watch<LanguageProvider>().locale,
 
-              // initialRoute: LoginScreen.route,
-              // initialRoute: BottomNavigationScreen.route,
-              initialRoute: SplashScreen.routeName,
+              initialRoute: '/',
               onGenerateRoute: onAppGenerateRoute(),
               routes: appRoutes(),
               builder: (context, child) {

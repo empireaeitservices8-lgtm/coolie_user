@@ -1,4 +1,4 @@
-import 'package:PROJECT_NAME_PLACEHOLDER/helpers/url_helpers.dart';
+import 'package:cooli/helpers/url_helpers.dart';
 
 String urlBase = UrlHelpers.baseURL;
 

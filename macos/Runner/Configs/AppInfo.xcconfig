@@ -5,7 +5,7 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = PROJECT_NAME_PLACEHOLDER
+PRODUCT_NAME = cooli
 
 // The application's bundle identifier
 PRODUCT_BUNDLE_IDENTIFIER = BUNDLE_ID_PLACEHOLDER

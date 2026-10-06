@@ -1,6 +1,6 @@
-import 'package:PROJECT_NAME_PLACEHOLDER/config/app_config.dart';
-import 'package:PROJECT_NAME_PLACEHOLDER/utils/connection_failed_screen.dart';
-import 'package:PROJECT_NAME_PLACEHOLDER/utils/extensions.dart';
+import 'package:cooli/config/app_config.dart';
+import 'package:cooli/utils/connection_failed_screen.dart';
+import 'package:cooli/utils/extensions.dart';
 import 'package:flutter/widgets.dart';
 
 import '/utils/exceptions.dart';

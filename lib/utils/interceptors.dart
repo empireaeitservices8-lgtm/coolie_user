@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:PROJECT_NAME_PLACEHOLDER/utils/app_build_methods.dart';
+import 'package:cooli/utils/app_build_methods.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

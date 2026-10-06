@@ -1,4 +1,4 @@
-import 'package:PROJECT_NAME_PLACEHOLDER/config/app_config.dart';
+import 'package:cooli/config/app_config.dart';
 import 'package:flutter/services.dart';
 
 import '/providers/language_provider.dart';

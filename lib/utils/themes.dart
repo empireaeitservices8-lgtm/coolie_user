@@ -1,5 +1,5 @@
-import 'package:PROJECT_NAME_PLACEHOLDER/utils/app_palette.dart';
-import 'package:PROJECT_NAME_PLACEHOLDER/utils/brand_colors.dart';
+import 'package:cooli/utils/app_palette.dart';
+import 'package:cooli/utils/brand_colors.dart';
 import 'package:flutter/material.dart';
 
 // Central seed color for the app's ColorScheme (brand primary blue)
@@ -110,10 +110,8 @@ ThemeData _buildTheme({required Brightness brightness}) {
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: isDark
-          ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.25)
-          : colorScheme.surfaceContainerHighest.withValues(alpha: 0.50),
+      filled: false,
+      fillColor: Colors.transparent,
       hintStyle: base.textTheme.bodyMedium?.copyWith(
         color: colorScheme.onSurfaceVariant,
       ),

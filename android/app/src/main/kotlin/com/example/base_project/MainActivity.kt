@@ -1,4 +1,4 @@
-package $BUNDLE_ID
+package com.cooli.app
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:developer';
 
-import 'package:PROJECT_NAME_PLACEHOLDER/models/app_error_model.dart';
+import 'package:cooli/models/app_error_model.dart';
 
 import '/providers/_base.dart';
 import '/providers/_mixins.dart';

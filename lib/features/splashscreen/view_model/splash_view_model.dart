@@ -1,4 +1,4 @@
-import 'package:PROJECT_NAME_PLACEHOLDER/providers/view_model.dart';
+import 'package:cooli/providers/view_model.dart';
 
 class SplashViewModel extends ViewModel{
 
