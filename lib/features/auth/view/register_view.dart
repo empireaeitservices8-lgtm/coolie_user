@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cooli/features/auth/model/auth_model.dart';
+import 'package:cooli/features/auth/repo/auth_repo.dart';
 import 'package:cooli/features/auth/view_model/auth_view_model.dart';
 import 'package:cooli/features/auth/view/otp_verification_view.dart';
 import 'package:cooli/features/auth/view/login_view.dart';
+import 'package:cooli/widgets/cooli_widgets.dart';
 
 class RegisterView extends StatefulWidget {
   static const String routeName = '/register';
@@ -15,173 +18,67 @@ class RegisterView extends StatefulWidget {
 
 class _RegisterViewState extends State<RegisterView> {
   late AuthViewModel _viewModel;
-  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
-
-  final FocusNode _nameFocus = FocusNode();
-  final FocusNode _phoneFocus = FocusNode();
-  final FocusNode _emailFocus = FocusNode();
-  final FocusNode _passFocus = FocusNode();
-  final FocusNode _confirmPassFocus = FocusNode();
+  final FocusNode _phoneFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
     _viewModel = AuthViewModel();
-    for (var f in [_nameFocus, _phoneFocus, _emailFocus, _passFocus, _confirmPassFocus]) {
-      f.addListener(() => setState(() {}));
-    }
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
     _phoneController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    _nameFocus.dispose();
-    _phoneFocus.dispose();
-    _emailFocus.dispose();
-    _passFocus.dispose();
-    _confirmPassFocus.dispose();
+    _phoneFocusNode.dispose();
     super.dispose();
   }
 
-  Widget _buildFormField({
-    required String label,
-    required String hintText,
-    required TextEditingController controller,
-    required FocusNode focusNode,
-    required IconData prefixIcon,
-    bool isPhone = false,
-    bool isPassword = false,
-    bool obscureText = false,
-    VoidCallback? onToggleObscure,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    final isFocused = focusNode.hasFocus;
+  void _handleSendOtp() async {
+    final rawPhone = _phoneController.text.trim();
+    final digits = rawPhone.replaceAll(RegExp(r'\D'), '');
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF64748B),
-          ),
+    if (digits.length != 10) {
+      showCooliToast(
+        context,
+        message: 'Please enter a 10-digit mobile number',
+        icon: Icons.error_outline_rounded,
+        iconColor: Colors.redAccent,
+      );
+      return;
+    }
+
+    if (!AuthRepo.isValidIndianMobileNumber(digits)) {
+      showCooliToast(
+        context,
+        message: 'Mobile number must start with 6, 7, 8, or 9',
+        icon: Icons.error_outline_rounded,
+        iconColor: Colors.redAccent,
+      );
+      return;
+    }
+
+    final formattedPhone = AuthRepo.formatMobileNumber(digits);
+    final response = await _viewModel.sendOtp(formattedPhone);
+
+    if (mounted) {
+      showCooliToast(
+        context,
+        message: response.message,
+        icon: Icons.mark_email_read_outlined,
+        iconColor: const Color(0xFF2563EB),
+      );
+
+      Navigator.pushNamed(
+        context,
+        OtpVerificationView.routeName,
+        arguments: OtpVerificationArgs(
+          phoneNumber: formattedPhone,
+          isRegisterFlow: true,
+          serverOtp: response.otpCode,
         ),
-        const SizedBox(height: 6),
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: isFocused ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
-              width: isFocused ? 1.8 : 1.2,
-            ),
-            boxShadow: isFocused
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFF2563EB).withValues(alpha: 0.12),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ]
-                : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.02),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Row(
-            children: [
-              Icon(
-                prefixIcon,
-                size: 20,
-                color: isFocused ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
-              ),
-              const SizedBox(width: 10),
-              if (isPhone) ...[
-                const Text(
-                  '+91',
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  width: 1,
-                  height: 18,
-                  color: const Color(0xFFCBD5E1),
-                ),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                child: Theme(
-                  data: Theme.of(context).copyWith(
-                    inputDecorationTheme: const InputDecorationTheme(
-                      filled: false,
-                      fillColor: Colors.transparent,
-                    ),
-                  ),
-                  child: TextField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    obscureText: obscureText,
-                    keyboardType: keyboardType,
-                    style: const TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF0F172A),
-                    ),
-                    decoration: InputDecoration(
-                      hintText: hintText,
-                      hintStyle: const TextStyle(
-                        color: Color(0xFF94A3B8),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                      ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      errorBorder: InputBorder.none,
-                      disabledBorder: InputBorder.none,
-                      filled: false,
-                      fillColor: Colors.transparent,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                ),
-              ),
-              if (isPassword)
-                GestureDetector(
-                  onTap: onToggleObscure,
-                  child: Icon(
-                    obscureText
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                    color: const Color(0xFF94A3B8),
-                    size: 20,
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
+      );
+    }
   }
 
   @override
@@ -248,132 +145,75 @@ class _RegisterViewState extends State<RegisterView> {
                           ),
                         ),
 
+                        const SizedBox(height: 24),
+
+                        // Cooli App Icon Badge
+                        Center(
+                          child: Container(
+                            width: 72,
+                            height: 72,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(22),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF0072CE).withValues(alpha: 0.22),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(22),
+                              child: Image.asset(
+                                'assets/images/app_logo.png',
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                        ),
+
                         const SizedBox(height: 20),
 
                         // Title & Subtitle
-                        const Text(
-                          'Create Your Account',
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Join Cooli and access all services in one app.',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF64748B),
-                            fontWeight: FontWeight.w400,
+                        Center(
+                          child: Column(
+                            children: const [
+                              Text(
+                                'Register with Cooli',
+                                style: TextStyle(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF0F172A),
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                'Enter your mobile number to begin registration',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF64748B),
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
 
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 36),
 
-                        // Input Fields
-                        _buildFormField(
-                          label: 'Full Name',
-                          hintText: 'Enter your name',
-                          controller: _nameController,
-                          focusNode: _nameFocus,
-                          prefixIcon: Icons.person_outline_rounded,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildFormField(
-                          label: 'Mobile Number',
-                          hintText: 'Enter mobile number',
+                        // Mobile Number Input Field
+                        CooliPhoneInputField(
                           controller: _phoneController,
-                          focusNode: _phoneFocus,
-                          prefixIcon: Icons.phone_android_rounded,
-                          isPhone: true,
-                          keyboardType: TextInputType.phone,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildFormField(
-                          label: 'Email',
-                          hintText: 'Enter your email',
-                          controller: _emailController,
-                          focusNode: _emailFocus,
-                          prefixIcon: Icons.mail_outline_rounded,
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildFormField(
-                          label: 'Password',
-                          hintText: 'Create password',
-                          controller: _passwordController,
-                          focusNode: _passFocus,
-                          prefixIcon: Icons.lock_outline_rounded,
-                          isPassword: true,
-                          obscureText: vm.obscurePassword,
-                          onToggleObscure: vm.togglePasswordVisibility,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildFormField(
-                          label: 'Confirm Password',
-                          hintText: 'Confirm password',
-                          controller: _confirmPasswordController,
-                          focusNode: _confirmPassFocus,
-                          prefixIcon: Icons.lock_outline_rounded,
-                          isPassword: true,
-                          obscureText: vm.obscureConfirmPassword,
-                          onToggleObscure: vm.toggleConfirmPasswordVisibility,
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Terms & Privacy Agreement Checkbox
-                        Row(
-                          children: [
-                            SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: Checkbox(
-                                value: vm.agreeToTerms,
-                                activeColor: const Color(0xFF2563EB),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(5),
-                                ),
-                                onChanged: (val) => vm.setAgreeToTerms(val ?? false),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: RichText(
-                                text: TextSpan(
-                                  style: const TextStyle(
-                                    fontSize: 12.5,
-                                    color: Color(0xFF64748B),
-                                  ),
-                                  children: const [
-                                    TextSpan(text: 'I agree to '),
-                                    TextSpan(
-                                      text: 'Terms & Conditions',
-                                      style: TextStyle(
-                                        color: Color(0xFF2563EB),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    TextSpan(text: ' and '),
-                                    TextSpan(
-                                      text: 'Privacy Policy',
-                                      style: TextStyle(
-                                        color: Color(0xFF2563EB),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
+                          focusNode: _phoneFocusNode,
+                          label: 'Mobile Number',
+                          hintText: 'Enter 10 digit mobile number',
                         ),
 
                         const SizedBox(height: 28),
 
-                        // Create Account Action Button
+                        // Send OTP Action Button
                         Container(
                           width: double.infinity,
                           height: 54,
@@ -396,31 +236,7 @@ class _RegisterViewState extends State<RegisterView> {
                             color: Colors.transparent,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(27),
-                              onTap: vm.isLoading
-                                  ? null
-                                  : () async {
-                                      final success = await vm.register(
-                                        fullName: _nameController.text.isEmpty
-                                            ? 'John Doe'
-                                            : _nameController.text,
-                                        phone: _phoneController.text.isEmpty
-                                            ? '+91 98765 43210'
-                                            : _phoneController.text,
-                                        email: _emailController.text.isEmpty
-                                            ? 'john@example.com'
-                                            : _emailController.text,
-                                        password: _passwordController.text,
-                                      );
-                                      if (success && context.mounted) {
-                                        Navigator.pushNamed(
-                                          context,
-                                          OtpVerificationView.routeName,
-                                          arguments: _phoneController.text.isEmpty
-                                              ? '+91 98765 43210'
-                                              : _phoneController.text,
-                                        );
-                                      }
-                                    },
+                              onTap: vm.isLoading ? null : _handleSendOtp,
                               child: Center(
                                 child: vm.isLoading
                                     ? const SizedBox(
@@ -431,11 +247,11 @@ class _RegisterViewState extends State<RegisterView> {
                                           valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                         ),
                                       )
-                                    : Row(
+                                    : const Row(
                                         mainAxisSize: MainAxisSize.min,
-                                        children: const [
+                                        children: [
                                           Text(
-                                            'Create Account',
+                                            'Send OTP',
                                             style: TextStyle(
                                               color: Colors.white,
                                               fontSize: 16,
@@ -456,7 +272,7 @@ class _RegisterViewState extends State<RegisterView> {
                           ),
                         ),
 
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 28),
 
                         // Already have an account? Login
                         Center(
@@ -490,7 +306,44 @@ class _RegisterViewState extends State<RegisterView> {
                           ),
                         ),
 
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 36),
+
+                        // Terms Note
+                        Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: RichText(
+                              textAlign: TextAlign.center,
+                              text: const TextSpan(
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF94A3B8),
+                                  height: 1.5,
+                                ),
+                                children: [
+                                  TextSpan(text: 'By continuing, you agree to our '),
+                                  TextSpan(
+                                    text: 'Terms of Service',
+                                    style: TextStyle(
+                                      color: Color(0xFF2563EB),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  TextSpan(text: ' & '),
+                                  TextSpan(
+                                    text: 'Privacy Policy',
+                                    style: TextStyle(
+                                      color: Color(0xFF2563EB),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
                       ],
                     ),
                   );

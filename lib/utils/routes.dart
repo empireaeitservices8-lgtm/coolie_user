@@ -3,6 +3,7 @@ import 'package:cooli/features/splash/view/splash_view.dart';
 import 'package:cooli/features/onboarding/view/onboarding_view.dart';
 import 'package:cooli/features/auth/view/login_view.dart';
 import 'package:cooli/features/auth/view/register_view.dart';
+import 'package:cooli/features/auth/view/register_details_view.dart';
 import 'package:cooli/features/auth/view/otp_verification_view.dart';
 import 'package:cooli/features/dashboard/view/main_navigation_view.dart';
 import 'package:cooli/features/ecommerce/view/ecommerce_home_view.dart';
@@ -13,12 +14,18 @@ import 'package:cooli/features/ecommerce/view/order_confirmed_view.dart';
 import 'package:cooli/features/ecommerce/view/track_order_view.dart';
 import 'package:cooli/features/ride/view/ride_booking_view.dart';
 import 'package:cooli/features/ride/view/ride_selection_view.dart';
+import 'package:cooli/features/ride/view/ride_searching_driver_view.dart';
 import 'package:cooli/features/ride/view/ride_tracking_view.dart';
 import 'package:cooli/features/ride/view/ride_completed_view.dart';
 import 'package:cooli/features/porter/view/porter_home_view.dart';
 import 'package:cooli/features/porter/view/book_porter_view.dart';
 import 'package:cooli/features/porter/view/track_porter_view.dart';
 import 'package:cooli/features/services/view/services_home_view.dart';
+import 'package:cooli/features/services/view/blackbuck_vehicle_selection_view.dart';
+import 'package:cooli/features/services/view/post_truck_requirement_view.dart';
+import 'package:cooli/features/services/view/bids_received_view.dart';
+import 'package:cooli/features/services/view/blackbuck_track_truck_view.dart';
+import 'package:cooli/features/services/view/blackbuck_delivery_completed_view.dart';
 import 'package:cooli/features/services/view/service_detail_view.dart';
 import 'package:cooli/features/services/view/book_service_view.dart';
 import 'package:cooli/features/services/view/service_confirmed_view.dart';
@@ -33,6 +40,7 @@ Map<String, Widget Function(BuildContext context)> appRoutes() => {
       OnboardingView.routeName: (context) => const OnboardingView(),
       LoginView.routeName: (context) => const LoginView(),
       RegisterView.routeName: (context) => const RegisterView(),
+      RegisterDetailsView.routeName: (context) => const RegisterDetailsView(),
       OtpVerificationView.routeName: (context) => const OtpVerificationView(),
       MainNavigationView.routeName: (context) => const MainNavigationView(),
       EcommerceHomeView.routeName: (context) => const EcommerceHomeView(),
@@ -42,12 +50,18 @@ Map<String, Widget Function(BuildContext context)> appRoutes() => {
       TrackOrderView.routeName: (context) => const TrackOrderView(),
       RideBookingView.routeName: (context) => const RideBookingView(),
       RideSelectionView.routeName: (context) => const RideSelectionView(),
+      RideSearchingDriverView.routeName: (context) => const RideSearchingDriverView(),
       RideTrackingView.routeName: (context) => const RideTrackingView(),
       RideCompletedView.routeName: (context) => const RideCompletedView(),
       PorterHomeView.routeName: (context) => const PorterHomeView(),
       BookPorterView.routeName: (context) => const BookPorterView(),
       TrackPorterView.routeName: (context) => const TrackPorterView(),
       ServicesHomeView.routeName: (context) => const ServicesHomeView(),
+      BlackbuckVehicleSelectionView.routeName: (context) => const BlackbuckVehicleSelectionView(),
+      PostTruckRequirementView.routeName: (context) => const PostTruckRequirementView(),
+      BidsReceivedView.routeName: (context) => const BidsReceivedView(),
+      BlackbuckTrackTruckView.routeName: (context) => const BlackbuckTrackTruckView(),
+      BlackbuckDeliveryCompletedView.routeName: (context) => const BlackbuckDeliveryCompletedView(),
       BookServiceView.routeName: (context) => const BookServiceView(),
       ServiceConfirmedView.routeName: (context) => const ServiceConfirmedView(),
       ProfileView.routeName: (context) => const ProfileView(),

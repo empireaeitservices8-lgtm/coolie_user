@@ -2,7 +2,14 @@ import 'package:cooli/helpers/url_helpers.dart';
 
 String urlBase = UrlHelpers.baseURL;
 
-//Register
+// Authentication Endpoints
+String urlSendOtp = "${urlBase}auth/send-otp/";
+String urlSendLoginOtp = "${urlBase}auth/send-login-otp/";
+String urlVerifyOtp = "${urlBase}auth/verify-otp/";
+String urlLogin = "${urlBase}auth/login/";
+String urlRegister = "${urlBase}auth/register/";
+
+//Register (Legacy / Fallback)
 String urlRegistrationRequestOTP = "${urlBase}register/request-otp";
 String urlRegistrationVerifyOTP = "${urlBase}register/verify-otp";
 String urlRegistration = "${urlBase}register/store";

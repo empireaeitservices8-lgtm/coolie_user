@@ -1,5 +1,54 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cooli/utils/cooli_theme.dart';
+
+/// Clean, modern white floating toast
+void showCooliToast(
+  BuildContext context, {
+  required String message,
+  IconData icon = Icons.check_circle_rounded,
+  Color iconColor = const Color(0xFF2563EB),
+  Duration duration = const Duration(seconds: 3),
+}) {
+  final scaffold = ScaffoldMessenger.of(context);
+  scaffold.hideCurrentSnackBar();
+  scaffold.showSnackBar(
+    SnackBar(
+      content: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: iconColor, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFF0F172A),
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+      backgroundColor: Colors.white,
+      elevation: 8,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.2),
+      ),
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      duration: duration,
+    ),
+  );
+}
 
 class CooliButton extends StatelessWidget {
   final String text;
@@ -248,6 +297,50 @@ class CooliBadge extends StatelessWidget {
   }
 }
 
+/// Custom TextInputFormatter enforcing Indian Mobile Number rules:
+/// 1. Only digits allowed
+/// 2. First digit MUST start with 6, 7, 8, or 9 (rejects 0, 1, 2, 3, 4, 5)
+/// 3. Maximum 10 digits
+class IndianMobileNumberFormatter extends TextInputFormatter {
+  const IndianMobileNumberFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    String newDigits = newValue.text.replaceAll(RegExp(r'\D'), '');
+
+    // Allow deleting / empty text
+    if (newDigits.isEmpty) {
+      return const TextEditingValue(
+        text: '',
+        selection: TextSelection.collapsed(offset: 0),
+      );
+    }
+
+    // Strip leading 91 or +91 if user pastes standard format
+    if (newDigits.length > 10 && newDigits.startsWith('91')) {
+      newDigits = newDigits.substring(2);
+    }
+
+    // First digit MUST be 6, 7, 8, or 9
+    if (!['6', '7', '8', '9'].contains(newDigits[0])) {
+      return oldValue;
+    }
+
+    // Limit to max 10 digits
+    if (newDigits.length > 10) {
+      newDigits = newDigits.substring(0, 10);
+    }
+
+    return TextEditingValue(
+      text: newDigits,
+      selection: TextSelection.collapsed(offset: newDigits.length),
+    );
+  }
+}
+
 /// A premium custom Phone Input Field with Country code prefix, active focus glow, and 0 inner borders
 class CooliPhoneInputField extends StatefulWidget {
   final TextEditingController controller;
@@ -387,7 +480,11 @@ class _CooliPhoneInputFieldState extends State<CooliPhoneInputField> {
                   child: TextField(
                     controller: widget.controller,
                     focusNode: _focusNode,
-                    keyboardType: TextInputType.phone,
+                    keyboardType: TextInputType.number,
+                    maxLength: 10,
+                    inputFormatters: const [
+                      IndianMobileNumberFormatter(),
+                    ],
                     onChanged: (val) {
                       setState(() {});
                       widget.onChanged?.call(val);
@@ -399,6 +496,7 @@ class _CooliPhoneInputFieldState extends State<CooliPhoneInputField> {
                       letterSpacing: 0.5,
                     ),
                     decoration: InputDecoration(
+                      counterText: '',
                       filled: false,
                       fillColor: Colors.transparent,
                       hintText: widget.hintText,

@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:cooli/models/app_error_model.dart';
 import 'package:cooli/providers/_mixins.dart';
 import 'package:cooli/utils/extensions.dart';
@@ -7,22 +6,72 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '_mixins_api.dart';
 
+/// Global Pretty API Logger Interceptor for all network requests
+class CooliApiLoggerInterceptor extends Interceptor {
+  final Map<String, DateTime> _requestTimers = {};
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    _requestTimers[options.uri.toString()] = DateTime.now();
+
+    debugPrint('╔════════════════════════════════════════════════════════════════════════════════');
+    debugPrint('║ 🚀 [API REQUEST] ${options.method.toUpperCase()} ${options.uri}');
+    debugPrint('║ 📋 Headers: ${options.headers}');
+    if (options.queryParameters.isNotEmpty) {
+      debugPrint('║ 🔍 Query Parameters: ${options.queryParameters}');
+    }
+    if (options.data != null) {
+      debugPrint('║ 📦 Request Body: ${options.data}');
+    }
+    debugPrint('╚════════════════════════════════════════════════════════════════════════════════');
+
+    super.onRequest(options, handler);
+  }
+
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    final startTime = _requestTimers.remove(response.requestOptions.uri.toString());
+    final duration = startTime != null
+        ? '${DateTime.now().difference(startTime).inMilliseconds}ms'
+        : 'N/A';
+
+    debugPrint('╔════════════════════════════════════════════════════════════════════════════════');
+    debugPrint('║ ✅ [API RESPONSE - ${response.statusCode} ${response.statusMessage ?? 'OK'}] ${response.requestOptions.method.toUpperCase()} ${response.requestOptions.uri}');
+    debugPrint('║ ⏱️ Elapsed Time: $duration');
+    debugPrint('║ 📥 Response Body: ${response.data}');
+    debugPrint('╚════════════════════════════════════════════════════════════════════════════════');
+
+    super.onResponse(response, handler);
+  }
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    final startTime = _requestTimers.remove(err.requestOptions.uri.toString());
+    final duration = startTime != null
+        ? '${DateTime.now().difference(startTime).inMilliseconds}ms'
+        : 'N/A';
+
+    debugPrint('╔════════════════════════════════════════════════════════════════════════════════');
+    debugPrint('║ ❌ [API ERROR - ${err.response?.statusCode ?? 'NO_STATUS'}] ${err.requestOptions.method.toUpperCase()} ${err.requestOptions.uri}');
+    debugPrint('║ ⏱️ Elapsed Time: $duration');
+    debugPrint('║ ⚠️ Error Type: ${err.type}');
+    debugPrint('║ ⚠️ Error Message: ${err.message}');
+    if (err.response?.data != null) {
+      debugPrint('║ 📥 Error Response: ${err.response?.data}');
+    }
+    debugPrint('╚════════════════════════════════════════════════════════════════════════════════');
+
+    super.onError(err, handler);
+  }
+}
+
 class WebAPIService with WebAPIMixin, MixinAPIProvider {
   WebAPIService._initialise()
       : _dio = Dio(BaseOptions(
-            // connectTimeout: 5000, receiveTimeout: 3000,
             headers: {
               "accept": "application/json",
             })) {
-    if (kDebugMode) {
-      dio.interceptors.add(LogInterceptor(
-        responseHeader: false,
-        responseBody: true,
-        requestBody: true,
-        requestHeader: true,
-      ));
-      // ..interceptors.add(AppStackInterceptorBuilder.appStackInterceptor);
-    }
+    _dio.interceptors.add(CooliApiLoggerInterceptor());
   }
 
   factory WebAPIService() => WebAPIService._initialise();
@@ -58,12 +107,6 @@ class WebAPIService with WebAPIMixin, MixinAPIProvider {
       });
 
   /// Initializes the tenant code in the header.
-  ///
-  /// This function retrieves the tenant code from shared preferences and sets it
-  /// in the Dio headers. If the 'tenant' header already exists, it is removed
-  /// before setting the new tenant code.
-  ///
-  /// Returns a [Future] that completes with `true` when the tenant code is successfully set.
   Future<bool> initTenantPrefToHeader() =>
       getTenantCodeSharedPref().then((tenantCode) async {
         if (_dio.options.headers.containsKey('tenant')) {
@@ -74,23 +117,6 @@ class WebAPIService with WebAPIMixin, MixinAPIProvider {
       });
 
   /// Executes an API call and handles its response.
-  ///
-  /// This function performs the following steps:
-  /// 1. Calls the provided API method.
-  /// 2. Validates the response status and data.
-  /// 3. Converts the response data using the provided converter function.
-  /// 4. Calls the [onSuccess] callback if the response is successful.
-  /// 5. Handles any errors using the [onDioError] function and calls the [onError] callback if provided.
-  ///
-  /// The function also supports refreshing the API call using the [functionToRefresh] parameter.
-  ///
-  /// - [methodToCall]: The API method to call, which returns a [Future] of [Response].
-  /// - [converter]: A function to convert the response data.
-  /// - [onError]: An optional callback for handling errors.
-  /// - [onSuccess]: An optional callback for handling successful responses.
-  /// - [functionToRefresh]: An optional function to refresh the API call.
-  ///
-  /// Returns a [Future] that completes with the converted response data.
   Future<T> executeAPI<T>({
     required Future<Response<dynamic>> methodToCall,
     required FutureOr<T> Function(

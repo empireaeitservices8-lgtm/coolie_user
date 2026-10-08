@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cooli/features/auth/model/auth_model.dart';
+import 'package:cooli/features/auth/repo/auth_repo.dart';
 import 'package:cooli/features/auth/view_model/auth_view_model.dart';
 import 'package:cooli/features/auth/view/register_view.dart';
 import 'package:cooli/features/auth/view/otp_verification_view.dart';
@@ -16,7 +18,7 @@ class LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<LoginView> {
   late AuthViewModel _viewModel;
-  final TextEditingController _phoneController = TextEditingController(text: '98765 43210');
+  final TextEditingController _phoneController = TextEditingController();
   final FocusNode _phoneFocusNode = FocusNode();
 
   @override
@@ -34,21 +36,47 @@ class _LoginViewState extends State<LoginView> {
 
   void _handleGetOtp() async {
     final phone = _phoneController.text.trim();
-    if (phone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid mobile number'),
-          backgroundColor: Colors.redAccent,
-        ),
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+
+    if (digits.length != 10) {
+      showCooliToast(
+        context,
+        message: 'Please enter a 10-digit mobile number',
+        icon: Icons.error_outline_rounded,
+        iconColor: Colors.redAccent,
       );
       return;
     }
 
-    final success = await _viewModel.sendOtp('+91 $phone');
-    if (success && mounted) {
+    if (!AuthRepo.isValidIndianMobileNumber(digits)) {
+      showCooliToast(
+        context,
+        message: 'Mobile number must start with 6, 7, 8, or 9',
+        icon: Icons.error_outline_rounded,
+        iconColor: Colors.redAccent,
+      );
+      return;
+    }
+
+    final formattedPhone = AuthRepo.formatMobileNumber(digits);
+    final response = await _viewModel.sendLoginOtp(formattedPhone);
+
+    if (mounted) {
+      showCooliToast(
+        context,
+        message: response.message,
+        icon: Icons.mark_email_read_outlined,
+        iconColor: const Color(0xFF2563EB),
+      );
+
       Navigator.pushNamed(
         context,
         OtpVerificationView.routeName,
+        arguments: OtpVerificationArgs(
+          phoneNumber: formattedPhone,
+          isRegisterFlow: false,
+          serverOtp: response.otpCode,
+        ),
       );
     }
   }
