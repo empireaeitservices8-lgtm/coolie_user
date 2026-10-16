@@ -11,6 +11,7 @@ class ServiceConfirmedView extends StatelessWidget {
   final String driverPhone;
   final String pickupTime;
   final String? truckType;
+  final String paymentMethod;
 
   const ServiceConfirmedView({
     super.key,
@@ -20,6 +21,7 @@ class ServiceConfirmedView extends StatelessWidget {
     this.driverPhone = '+91 98765 43210',
     this.pickupTime = '22 Apr 2025, 10:00 AM',
     this.truckType,
+    this.paymentMethod = 'Cash on Delivery',
   });
 
   @override
@@ -295,6 +297,102 @@ class ServiceConfirmedView extends StatelessWidget {
                             icon: Icons.person_pin_circle_outlined,
                             label: 'Pickup Time',
                             value: pickupTime,
+                          ),
+
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 14),
+                            child: Divider(color: Color(0xFFF1F5F9), height: 1),
+                          ),
+
+                          // 5. Payment Method
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: paymentMethod.toLowerCase().contains('wallet')
+                                      ? Colors.purple.withValues(alpha: 0.1)
+                                      : (paymentMethod.toLowerCase().contains('upi')
+                                          ? const Color(0xFF2563EB).withValues(alpha: 0.1)
+                                          : const Color(0xFF16A34A).withValues(alpha: 0.1)),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  paymentMethod.toLowerCase().contains('wallet')
+                                      ? Icons.account_balance_wallet_rounded
+                                      : (paymentMethod.toLowerCase().contains('upi')
+                                          ? Icons.account_balance_rounded
+                                          : Icons.payments_rounded),
+                                  color: paymentMethod.toLowerCase().contains('wallet')
+                                      ? Colors.purple
+                                      : (paymentMethod.toLowerCase().contains('upi')
+                                          ? const Color(0xFF2563EB)
+                                          : const Color(0xFF16A34A)),
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Payment Method',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF64748B),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      paymentMethod,
+                                      style: const TextStyle(
+                                        fontSize: 14.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: paymentMethod.toLowerCase().contains('wallet')
+                                      ? const Color(0xFFFAF5FF)
+                                      : (paymentMethod.toLowerCase().contains('upi')
+                                          ? const Color(0xFFEFF6FF)
+                                          : const Color(0xFFF0FDF4)),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: paymentMethod.toLowerCase().contains('wallet')
+                                        ? const Color(0xFFE9D5FF)
+                                        : (paymentMethod.toLowerCase().contains('upi')
+                                            ? const Color(0xFFBFDBFE)
+                                            : const Color(0xFFBBF7D0)),
+                                  ),
+                                ),
+                                child: Text(
+                                  paymentMethod.toLowerCase().contains('wallet')
+                                      ? 'Wallet Paid'
+                                      : (paymentMethod.toLowerCase().contains('upi')
+                                          ? 'UPI Online'
+                                          : 'Pay on Unload'),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: paymentMethod.toLowerCase().contains('wallet')
+                                        ? const Color(0xFF7E22CE)
+                                        : (paymentMethod.toLowerCase().contains('upi')
+                                            ? const Color(0xFF1D4ED8)
+                                            : const Color(0xFF15803D)),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),

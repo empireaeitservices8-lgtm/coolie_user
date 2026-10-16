@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cooli/features/services/view/blackbuck_vehicle_selection_view.dart';
+import 'package:cooli/features/services/view/blackbuck_find_loads_view.dart';
 
 class ServicesHomeView extends StatelessWidget {
   static const String routeName = '/services-home';
@@ -8,6 +8,6 @@ class ServicesHomeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const BlackbuckVehicleSelectionView();
+    return const BlackbuckFindLoadsView();
   }
 }

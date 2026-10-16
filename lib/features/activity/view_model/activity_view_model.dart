@@ -15,9 +15,18 @@ class ActivityViewModel extends ViewModel {
   ActivityType? _selectedFilter;
   ActivityType? get selectedFilter => _selectedFilter;
 
-  void loadActivities() {
+  void loadActivities() async {
     _activities = _repo.getAllActivities();
     notifyListeners();
+
+    final live = await _repo.fetchLiveActivities();
+    if (live.isNotEmpty) {
+      _activities = live;
+      if (_selectedFilter != null) {
+        _activities = _activities.where((a) => a.type == _selectedFilter).toList();
+      }
+      notifyListeners();
+    }
   }
 
   void setFilter(ActivityType? filter) {

@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cooli/features/splash/view_model/splash_view_model.dart';
 import 'package:cooli/features/onboarding/view/onboarding_view.dart';
+import 'package:cooli/features/dashboard/view/main_navigation_view.dart';
+import 'package:cooli/services/session_manager.dart';
+import 'package:cooli/services/web_api_services.dart';
 
 class SplashView extends StatefulWidget {
   static const String routeName = '/splash';
@@ -43,12 +46,11 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
 
   Timer? _navTimer;
   bool _hasNavigated = false;
+  bool _didInitSplash = false;
 
   @override
   void initState() {
     super.initState();
-    _viewModel = SplashViewModel();
-    _viewModel.initSplash();
 
     // 1. Entrance Controller (1.6s)
     _entranceController = AnimationController(
@@ -63,19 +65,22 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     );
 
     // Speed bars staggered slide from left
-    _bar1Anim = Tween<Offset>(begin: const Offset(-2.5, 0), end: Offset.zero).animate(
+    _bar1Anim =
+        Tween<Offset>(begin: const Offset(-2.5, 0), end: Offset.zero).animate(
       CurvedAnimation(
         parent: _entranceController,
         curve: const Interval(0.0, 0.45, curve: Curves.easeOutBack),
       ),
     );
-    _bar2Anim = Tween<Offset>(begin: const Offset(-3.0, 0), end: Offset.zero).animate(
+    _bar2Anim =
+        Tween<Offset>(begin: const Offset(-3.0, 0), end: Offset.zero).animate(
       CurvedAnimation(
         parent: _entranceController,
         curve: const Interval(0.08, 0.55, curve: Curves.easeOutBack),
       ),
     );
-    _bar3Anim = Tween<Offset>(begin: const Offset(-3.5, 0), end: Offset.zero).animate(
+    _bar3Anim =
+        Tween<Offset>(begin: const Offset(-3.5, 0), end: Offset.zero).animate(
       CurvedAnimation(
         parent: _entranceController,
         curve: const Interval(0.16, 0.65, curve: Curves.easeOutBack),
@@ -103,7 +108,8 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
         curve: const Interval(0.35, 0.75, curve: Curves.easeIn),
       ),
     );
-    _subtitleSlide = Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero).animate(
+    _subtitleSlide =
+        Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero).animate(
       CurvedAnimation(
         parent: _entranceController,
         curve: const Interval(0.35, 0.75, curve: Curves.easeOutCubic),
@@ -111,7 +117,8 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     );
 
     // 3D Truck Entrance (Drives smoothly from right to left into center)
-    _truckSlide = Tween<Offset>(begin: const Offset(1.1, 0.0), end: Offset.zero).animate(
+    _truckSlide =
+        Tween<Offset>(begin: const Offset(1.1, 0.0), end: Offset.zero).animate(
       CurvedAnimation(
         parent: _entranceController,
         curve: const Interval(0.20, 0.82, curve: Curves.easeOutCubic),
@@ -132,9 +139,12 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
 
     // Physics Braking Tilt (settles naturally when decelerating from right to left)
     _truckBrakeTilt = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween<double>(begin: 0.0, end: 0.032), weight: 40),
-      TweenSequenceItem(tween: Tween<double>(begin: 0.032, end: -0.010), weight: 35),
-      TweenSequenceItem(tween: Tween<double>(begin: -0.010, end: 0.0), weight: 25),
+      TweenSequenceItem(
+          tween: Tween<double>(begin: 0.0, end: 0.032), weight: 40),
+      TweenSequenceItem(
+          tween: Tween<double>(begin: 0.032, end: -0.010), weight: 35),
+      TweenSequenceItem(
+          tween: Tween<double>(begin: -0.010, end: 0.0), weight: 25),
     ]).animate(
       CurvedAnimation(
         parent: _entranceController,
@@ -157,7 +167,8 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
         curve: const Interval(0.55, 0.95, curve: Curves.easeIn),
       ),
     );
-    _taglineSlide = Tween<Offset>(begin: const Offset(0, 0.6), end: Offset.zero).animate(
+    _taglineSlide =
+        Tween<Offset>(begin: const Offset(0, 0.6), end: Offset.zero).animate(
       CurvedAnimation(
         parent: _entranceController,
         curve: const Interval(0.55, 0.95, curve: Curves.easeOutBack),
@@ -198,19 +209,44 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     // Auto navigate with smooth transition after 3.2s
     _navTimer = Timer(const Duration(milliseconds: 3200), () {
       if (mounted) {
-        _navigateToOnboarding();
+        _handleNavigation();
       }
     });
   }
 
-  void _navigateToOnboarding() {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _viewModel = context.read<SplashViewModel>();
+    if (!_didInitSplash) {
+      _didInitSplash = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _viewModel.initSplash();
+      });
+    }
+  }
+
+  void _handleNavigation() async {
     if (_hasNavigated || !mounted) return;
     _hasNavigated = true;
 
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      OnboardingView.routeName,
-      (route) => false,
-    );
+    final isLoggedIn = await SessionManager().isLoggedIn();
+    if (!mounted) return;
+
+    if (isLoggedIn) {
+      // User is already logged in: sync auth headers and keep them logged in
+      await WebAPIService().initTokenToHeader();
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        MainNavigationView.routeName,
+        (route) => false,
+      );
+    } else {
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        OnboardingView.routeName,
+        (route) => false,
+      );
+    }
   }
 
   @override
@@ -225,260 +261,260 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
 
-    return ChangeNotifierProvider.value(
-      value: _viewModel,
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        body: Stack(
-          children: [
-            // 1. Bottom Organic Wave Decoration
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: AnimatedBuilder(
-                animation: _waveProgress,
-                builder: (context, child) {
-                  return CustomPaint(
-                    size: Size(screenSize.width, 220 * _waveProgress.value),
-                    painter: _SplashBottomWavePainter(),
-                  );
-                },
-              ),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          // 1. Bottom Organic Wave Decoration
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: AnimatedBuilder(
+              animation: _waveProgress,
+              builder: (context, child) {
+                return CustomPaint(
+                  size: Size(screenSize.width, 220 * _waveProgress.value),
+                  painter: _SplashBottomWavePainter(),
+                );
+              },
             ),
+          ),
 
-            SafeArea(
-              child: Column(
-                children: [
-                  const SizedBox(height: 36),
+          SafeArea(
+            child: Column(
+              children: [
+                const SizedBox(height: 36),
 
-                  // 2. Top Logo & Title with Staggered Animations
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // 3-tier Staggered Speed Bars
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
+                // 2. Top Logo & Title with Staggered Animations
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // 3-tier Staggered Speed Bars
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SlideTransition(
+                                position: _bar1Anim,
+                                child: Container(
+                                  width: 34,
+                                  height: 5.5,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF2563EB),
+                                    borderRadius: BorderRadius.circular(3),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF2563EB)
+                                            .withValues(alpha: 0.3),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 1),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 4.5),
+                              SlideTransition(
+                                position: _bar2Anim,
+                                child: Container(
+                                  width: 26,
+                                  height: 5.5,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF38BDF8),
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 4.5),
+                              SlideTransition(
+                                position: _bar3Anim,
+                                child: Container(
+                                  width: 18,
+                                  height: 5.5,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF60A5FA),
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 12),
+                          // Brand Name
+                          ScaleTransition(
+                            scale: _titleScale,
+                            child: FadeTransition(
+                              opacity: _titleFade,
+                              child: const Text(
+                                'Cooli',
+                                style: TextStyle(
+                                  fontSize: 44,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF2563EB),
+                                  letterSpacing: -0.8,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // Subtitle
+                      SlideTransition(
+                        position: _subtitleSlide,
+                        child: FadeTransition(
+                          opacity: _subtitleFade,
+                          child: const Text(
+                            'Your Everyday Logistics Partner',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF475569),
+                              letterSpacing: 0.1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Spacer(flex: 1),
+
+                // 3. Center Enhanced 3D Delivery Truck with Smooth Physics & Suspension
+                SlideTransition(
+                  position: _truckSlide,
+                  child: ScaleTransition(
+                    scale: _truckScale,
+                    child: FadeTransition(
+                      opacity: _truckFade,
+                      child: AnimatedBuilder(
+                        animation: _entranceController,
+                        builder: (context, child) {
+                          return Transform.rotate(
+                            angle: _truckBrakeTilt.value,
+                            child: child,
+                          );
+                        },
+                        child: AnimatedBuilder(
+                          animation: _idleFloat,
+                          builder: (context, child) {
+                            return Stack(
+                              alignment: Alignment.center,
                               children: [
-                                SlideTransition(
-                                  position: _bar1Anim,
+                                // Soft Ambient Radial Aura Behind Truck
+                                Positioned(
                                   child: Container(
-                                    width: 34,
-                                    height: 5.5,
+                                    width: screenSize.width * 0.76,
+                                    height: 180,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF2563EB),
-                                      borderRadius: BorderRadius.circular(3),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFF2563EB).withValues(alpha: 0.3),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 1),
+                                      shape: BoxShape.circle,
+                                      gradient: RadialGradient(
+                                        colors: [
+                                          const Color(0xFF38BDF8).withValues(
+                                            alpha: 0.18 * _ambientGlow.value,
+                                          ),
+                                          const Color(0xFF6366F1).withValues(
+                                            alpha: 0.08 * _ambientGlow.value,
+                                          ),
+                                          Colors.transparent,
+                                        ],
+                                        radius: 0.85,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                // Dynamic Ground Shadow beneath wheels
+                                Positioned(
+                                  bottom: 12,
+                                  child: Transform.scale(
+                                    scaleX: _shadowScale.value,
+                                    scaleY: 1.0,
+                                    child: Container(
+                                      width: screenSize.width * 0.72,
+                                      height: 22,
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.12 * _shadowScale.value,
                                         ),
-                                      ],
+                                        borderRadius: BorderRadius.all(
+                                          Radius.elliptical(
+                                              screenSize.width * 0.72, 22),
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(
+                                              alpha: 0.12 * _shadowScale.value,
+                                            ),
+                                            blurRadius: 18,
+                                            spreadRadius: 4,
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 4.5),
-                                SlideTransition(
-                                  position: _bar2Anim,
-                                  child: Container(
-                                    width: 26,
-                                    height: 5.5,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF38BDF8),
-                                      borderRadius: BorderRadius.circular(3),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 4.5),
-                                SlideTransition(
-                                  position: _bar3Anim,
-                                  child: Container(
-                                    width: 18,
-                                    height: 5.5,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF60A5FA),
-                                      borderRadius: BorderRadius.circular(3),
+
+                                // The 3D High-Definition Truck Graphic with Idle Float
+                                Transform.translate(
+                                  offset: Offset(0, _idleFloat.value),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16.0),
+                                    child: Image.asset(
+                                      'assets/images/cooli_truck_splash_hd.png',
+                                      width: screenSize.width * 0.88,
+                                      fit: BoxFit.contain,
+                                      filterQuality: FilterQuality.high,
+                                      errorBuilder: (_, __, ___) => Image.asset(
+                                        'assets/images/splash_truck_clean.png',
+                                        width: screenSize.width * 0.88,
+                                        fit: BoxFit.contain,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ],
-                            ),
-                            const SizedBox(width: 12),
-                            // Brand Name
-                            ScaleTransition(
-                              scale: _titleScale,
-                              child: FadeTransition(
-                                opacity: _titleFade,
-                                child: const Text(
-                                  'Cooli',
-                                  style: TextStyle(
-                                    fontSize: 44,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF2563EB),
-                                    letterSpacing: -0.8,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        // Subtitle
-                        SlideTransition(
-                          position: _subtitleSlide,
-                          child: FadeTransition(
-                            opacity: _subtitleFade,
-                            child: const Text(
-                              'Your Everyday Logistics Partner',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF475569),
-                                letterSpacing: 0.1,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const Spacer(flex: 1),
-
-                  // 3. Center Enhanced 3D Delivery Truck with Smooth Physics & Suspension
-                  SlideTransition(
-                    position: _truckSlide,
-                    child: ScaleTransition(
-                      scale: _truckScale,
-                      child: FadeTransition(
-                        opacity: _truckFade,
-                        child: AnimatedBuilder(
-                          animation: _entranceController,
-                          builder: (context, child) {
-                            return Transform.rotate(
-                              angle: _truckBrakeTilt.value,
-                              child: child,
                             );
                           },
-                          child: AnimatedBuilder(
-                            animation: _idleFloat,
-                            builder: (context, child) {
-                              return Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  // Soft Ambient Radial Aura Behind Truck
-                                  Positioned(
-                                    child: Container(
-                                      width: screenSize.width * 0.76,
-                                      height: 180,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        gradient: RadialGradient(
-                                          colors: [
-                                            const Color(0xFF38BDF8).withValues(
-                                              alpha: 0.18 * _ambientGlow.value,
-                                            ),
-                                            const Color(0xFF6366F1).withValues(
-                                              alpha: 0.08 * _ambientGlow.value,
-                                            ),
-                                            Colors.transparent,
-                                          ],
-                                          radius: 0.85,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-
-                                  // Dynamic Ground Shadow beneath wheels
-                                  Positioned(
-                                    bottom: 12,
-                                    child: Transform.scale(
-                                      scaleX: _shadowScale.value,
-                                      scaleY: 1.0,
-                                      child: Container(
-                                        width: screenSize.width * 0.72,
-                                        height: 22,
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withValues(
-                                            alpha: 0.12 * _shadowScale.value,
-                                          ),
-                                          borderRadius: BorderRadius.all(
-                                            Radius.elliptical(screenSize.width * 0.72, 22),
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black.withValues(
-                                                alpha: 0.12 * _shadowScale.value,
-                                              ),
-                                              blurRadius: 18,
-                                              spreadRadius: 4,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-
-                                  // The 3D High-Definition Truck Graphic with Idle Float
-                                  Transform.translate(
-                                    offset: Offset(0, _idleFloat.value),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                                      child: Image.asset(
-                                        'assets/images/cooli_truck_splash_hd.png',
-                                        width: screenSize.width * 0.88,
-                                        fit: BoxFit.contain,
-                                        filterQuality: FilterQuality.high,
-                                        errorBuilder: (_, __, ___) => Image.asset(
-                                          'assets/images/splash_truck_clean.png',
-                                          width: screenSize.width * 0.88,
-                                          fit: BoxFit.contain,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
                         ),
                       ),
                     ),
                   ),
+                ),
 
-                  const Spacer(flex: 2),
+                const Spacer(flex: 2),
 
-                  // 4. Bottom Tagline with Fade & Slide inside Wave
-                  SlideTransition(
-                    position: _taglineSlide,
-                    child: FadeTransition(
-                      opacity: _taglineFade,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 36.0),
-                        child: Text(
-                          'Faster   •   Safer   •   Smarter',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF4F46E5).withValues(alpha: 0.9),
-                            letterSpacing: 0.9,
-                          ),
+                // 4. Bottom Tagline with Fade & Slide inside Wave
+                SlideTransition(
+                  position: _taglineSlide,
+                  child: FadeTransition(
+                    opacity: _taglineFade,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 36.0),
+                      child: Text(
+                        'Faster   •   Safer   •   Smarter',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF4F46E5).withValues(alpha: 0.9),
+                          letterSpacing: 0.9,
                         ),
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

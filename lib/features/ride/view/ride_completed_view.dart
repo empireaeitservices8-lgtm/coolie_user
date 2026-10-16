@@ -15,20 +15,29 @@ class RideCompletedView extends StatefulWidget {
 class _RideCompletedViewState extends State<RideCompletedView> {
   late RideViewModel _viewModel;
   int _selectedRating = 5;
+  double? _fare;
+  String _paymentMethod = 'UPI';
 
   @override
-  void initState() {
-    super.initState();
-    _viewModel = RideViewModel();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _viewModel = context.read<RideViewModel>();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map) {
+      if (args['fare'] != null) {
+        _fare = double.tryParse(args['fare'].toString());
+      }
+      if (args['paymentMethod'] != null) {
+        _paymentMethod = args['paymentMethod'].toString();
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider.value(
-      value: _viewModel,
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
           leading: IconButton(
@@ -130,9 +139,9 @@ class _RideCompletedViewState extends State<RideCompletedView> {
                 const SizedBox(height: 12),
 
                 // Fare Amount
-                const Text(
-                  '₹250',
-                  style: TextStyle(
+                Text(
+                  _fare != null ? '₹${_fare!.toStringAsFixed(0)}' : '₹250',
+                  style: const TextStyle(
                     fontSize: 34,
                     fontWeight: FontWeight.w900,
                     color: Color(0xFF0F172A),
@@ -145,20 +154,36 @@ class _RideCompletedViewState extends State<RideCompletedView> {
                 // Payment Method Badge
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
+                  children: [
+                    Icon(
+                      _paymentMethod == 'Coolie Wallet'
+                          ? Icons.account_balance_wallet_rounded
+                          : (_paymentMethod == 'UPI'
+                              ? Icons.account_balance_rounded
+                              : Icons.payments_rounded),
+                      size: 16,
+                      color: _paymentMethod == 'Coolie Wallet'
+                          ? Colors.purple
+                          : (_paymentMethod == 'UPI'
+                              ? const Color(0xFF4F46E5)
+                              : const Color(0xFF16A34A)),
+                    ),
+                    const SizedBox(width: 6),
                     Text(
-                      'Paid via UPI',
+                      _paymentMethod == 'Coolie Wallet'
+                          ? 'Paid via Coolie Wallet'
+                          : (_paymentMethod == 'UPI'
+                              ? 'Paid via UPI'
+                              : 'Cash Payment to Driver'),
                       style: TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF4F46E5),
+                        fontWeight: FontWeight.w700,
+                        color: _paymentMethod == 'Coolie Wallet'
+                            ? Colors.purple
+                            : (_paymentMethod == 'UPI'
+                                ? const Color(0xFF4F46E5)
+                                : const Color(0xFF16A34A)),
                       ),
-                    ),
-                    SizedBox(width: 4),
-                    Icon(
-                      Icons.sync_rounded,
-                      size: 16,
-                      color: Color(0xFF4F46E5),
                     ),
                   ],
                 ),
@@ -209,6 +234,7 @@ class _RideCompletedViewState extends State<RideCompletedView> {
                   height: 52,
                   child: ElevatedButton(
                     onPressed: () {
+                      _viewModel.setRating(_selectedRating);
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Thank you for your feedback!'),
@@ -276,7 +302,6 @@ class _RideCompletedViewState extends State<RideCompletedView> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }

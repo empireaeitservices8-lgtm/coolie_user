@@ -1,19 +1,22 @@
 import 'package:cooli/features/auth/model/auth_model.dart';
 import 'package:cooli/features/profile/repo/profile_repo.dart';
 import 'package:cooli/providers/view_model.dart';
+import 'package:cooli/services/session_manager.dart';
 
 class ProfileViewModel extends ViewModel {
-  final ProfileRepo _repo;
-
-  ProfileViewModel({ProfileRepo? repo}) : _repo = repo ?? ProfileRepo() {
+  ProfileViewModel({ProfileRepo? repo}) {
     loadUser();
   }
 
   UserModel? _user;
   UserModel? get user => _user;
 
-  void loadUser() {
-    _user = _repo.getUserProfile();
-    notifyListeners();
+  Future<void> loadUser() async {
+    // Load active saved user session directly from SessionManager
+    final saved = await SessionManager().getSavedUser();
+    if (saved != null) {
+      _user = saved;
+      notifyListeners();
+    }
   }
 }

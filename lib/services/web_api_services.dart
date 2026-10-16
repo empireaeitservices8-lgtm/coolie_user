@@ -66,6 +66,9 @@ class CooliApiLoggerInterceptor extends Interceptor {
 }
 
 class WebAPIService with WebAPIMixin, MixinAPIProvider {
+  static final WebAPIService _instance = WebAPIService._initialise();
+  factory WebAPIService() => _instance;
+
   WebAPIService._initialise()
       : _dio = Dio(BaseOptions(
             headers: {
@@ -73,8 +76,6 @@ class WebAPIService with WebAPIMixin, MixinAPIProvider {
             })) {
     _dio.interceptors.add(CooliApiLoggerInterceptor());
   }
-
-  factory WebAPIService() => WebAPIService._initialise();
 
   final Dio _dio;
 

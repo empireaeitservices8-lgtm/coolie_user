@@ -9,14 +9,28 @@ class RideSearchingDriverView extends StatefulWidget {
   final RideOption? selectedOption;
   final String? pickupLocation;
   final String? dropLocation;
+  final double? pickupLat;
+  final double? pickupLng;
+  final double? dropLat;
+  final double? dropLng;
   final double? fare;
+  final RideBookingData? bookingData;
+  final int? bookingId;
+  final String? paymentMethod;
 
   const RideSearchingDriverView({
     super.key,
     this.selectedOption,
     this.pickupLocation,
     this.dropLocation,
+    this.pickupLat,
+    this.pickupLng,
+    this.dropLat,
+    this.dropLng,
     this.fare,
+    this.bookingData,
+    this.bookingId,
+    this.paymentMethod,
   });
 
   @override
@@ -91,6 +105,19 @@ class _RideSearchingDriverViewState extends State<RideSearchingDriverView>
         Navigator.pushReplacementNamed(
           context,
           RideTrackingView.routeName,
+          arguments: {
+            'pickup': widget.pickupLocation,
+            'drop': widget.dropLocation,
+            'pickupLat': widget.pickupLat,
+            'pickupLng': widget.pickupLng,
+            'dropLat': widget.dropLat,
+            'dropLng': widget.dropLng,
+            'fare': widget.fare,
+            'selectedOption': widget.selectedOption,
+            'bookingId': widget.bookingId ?? widget.bookingData?.id,
+            'bookingData': widget.bookingData,
+            'paymentMethod': widget.paymentMethod ?? 'Cash',
+          },
         );
       }
     });
@@ -161,9 +188,11 @@ class _RideSearchingDriverViewState extends State<RideSearchingDriverView>
                           ),
                         ),
                         const SizedBox(width: 8),
-                        const Text(
-                          'Searching Drivers',
-                          style: TextStyle(
+                        Text(
+                          (widget.bookingId != null || widget.bookingData?.id != null)
+                              ? 'Booking #${widget.bookingId ?? widget.bookingData?.id} • Searching'
+                              : 'Searching Drivers',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -352,14 +381,43 @@ class _RideSearchingDriverViewState extends State<RideSearchingDriverView>
                           ),
                         ],
                       ),
-                      Text(
-                        fareText,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.4,
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            fareText,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.4,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: (widget.paymentMethod == 'Coolie Wallet')
+                                  ? Colors.purple.withValues(alpha: 0.25)
+                                  : (widget.paymentMethod == 'UPI'
+                                      ? const Color(0xFF2563EB).withValues(alpha: 0.25)
+                                      : const Color(0xFF16A34A).withValues(alpha: 0.25)),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              widget.paymentMethod ?? 'Cash',
+                              style: TextStyle(
+                                color: (widget.paymentMethod == 'Coolie Wallet')
+                                    ? const Color(0xFFD8B4FE)
+                                    : (widget.paymentMethod == 'UPI'
+                                        ? const Color(0xFF93C5FD)
+                                        : const Color(0xFF86EFAC)),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

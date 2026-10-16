@@ -1,12 +1,20 @@
+import 'package:dio/dio.dart';
 import 'package:cooli/features/auth/model/auth_model.dart';
-
+import 'package:cooli/services/session_manager.dart';
 class ProfileRepo {
+  ProfileRepo({Dio? dio});
+
+  Future<UserModel?> fetchUserProfile({int userId = 1}) async {
+    return await SessionManager().getSavedUser();
+  }
+
   UserModel getUserProfile() {
     return const UserModel(
-      id: 'usr_1001',
-      fullName: 'John Doe',
-      email: 'john.doe@example.com',
-      phoneNumber: '+91 98765 43210',
+      id: '1',
+      fullName: 'John Smith',
+      email: 'johnsmith@example.com',
+      phoneNumber: '',
+      address: '',
     );
   }
 }

@@ -6,6 +6,8 @@ import 'package:cooli/features/auth/model/auth_model.dart';
 import 'package:cooli/features/auth/view_model/auth_view_model.dart';
 import 'package:cooli/features/auth/view/register_details_view.dart';
 import 'package:cooli/features/dashboard/view/main_navigation_view.dart';
+import 'package:cooli/features/dashboard/view_model/dashboard_view_model.dart';
+import 'package:cooli/features/profile/view_model/profile_view_model.dart';
 import 'package:cooli/widgets/cooli_widgets.dart';
 
 class OtpVerificationView extends StatefulWidget {
@@ -39,7 +41,6 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
   @override
   void initState() {
     super.initState();
-    _viewModel = AuthViewModel();
     _startResendTimer();
 
     _illustrationController = AnimationController(
@@ -73,6 +74,12 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
         if (mounted) setState(() {});
       });
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _viewModel = context.read<AuthViewModel>();
   }
 
   void _startResendTimer() {
@@ -142,6 +149,7 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
     if (args.isRegisterFlow) {
       // 1. If Register Flow: Verify OTP via POST /auth/verify-otp/, then proceed to enter Name, Address, Email
       final res = await _viewModel.verifyOtp(args.phoneNumber, otp);
+      print('📩 [OtpVerificationView] Verify OTP Response: message=${res.message}, success=${res.success}, mobileNumber=${res.mobileNumber}');
       if (!mounted) return;
 
       if (res.success) {
@@ -174,6 +182,7 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
         args.phoneNumber,
         otp: otp,
       );
+      print('📩 [OtpVerificationView] Login / Verify OTP Response: message=${res.message}, success=${res.success}, user=${res.user?.fullName}');
       if (!mounted) return;
 
       if (res.success) {
@@ -184,6 +193,16 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
           iconColor: const Color(0xFF10B981),
         );
 
+        if (!mounted) return;
+        try {
+          await context.read<ProfileViewModel>().loadUser();
+          if (!mounted) return;
+          await context.read<DashboardViewModel>().refreshUserData();
+        } catch (e) {
+          debugPrint('Error syncing providers on login: $e');
+        }
+
+        if (!mounted) return;
         Navigator.pushNamedAndRemoveUntil(
           context,
           MainNavigationView.routeName,
@@ -254,349 +273,376 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
     final args = _getArgs();
     final phoneDisplay = args.phoneNumber;
 
-    return ChangeNotifierProvider.value(
-      value: _viewModel,
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        body: Stack(
-          children: [
-            // Top-right organic lavender curve
-            Positioned(
-              top: 0,
-              right: 0,
-              width: 170,
-              height: 140,
-              child: IgnorePointer(
-                child: CustomPaint(
-                  painter: _OtpTopRightWavePainter(),
-                ),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          // Top-right organic lavender curve
+          Positioned(
+            top: 0,
+            right: 0,
+            width: 170,
+            height: 140,
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _OtpTopRightWavePainter(),
               ),
             ),
+          ),
 
-            // Bottom rich organic layered waves (pinned seamlessly to the bottom)
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 220,
-              child: IgnorePointer(
-                child: CustomPaint(
-                  painter: _OtpBottomWavesPainter(),
-                ),
+          // Bottom rich organic layered waves (pinned seamlessly to the bottom)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 220,
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _OtpBottomWavesPainter(),
               ),
             ),
+          ),
 
-            // Main Content with LayoutBuilder for bottom pinning & keyboard friendliness
-            SafeArea(
-              child: Consumer<AuthViewModel>(
-                builder: (context, vm, child) {
-                  return FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        return SingleChildScrollView(
-                          physics: const BouncingScrollPhysics(),
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              minHeight: constraints.maxHeight,
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  // Top & Middle Content
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
-                                    children: [
-                                      // Top Bar with back button
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 4.0),
-                                        child: Row(
-                                          children: [
-                                            if (Navigator.canPop(context))
-                                              GestureDetector(
-                                                onTap: () => Navigator.maybePop(context),
-                                                child: Container(
-                                                  width: 38,
-                                                  height: 38,
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(0xFFF1F5F9),
-                                                    borderRadius: BorderRadius.circular(12),
-                                                  ),
-                                                  child: const Center(
-                                                    child: Icon(
-                                                      Icons.arrow_back_ios_new_rounded,
-                                                      size: 16,
-                                                      color: Color(0xFF1E293B),
-                                                    ),
+          // Main Content with LayoutBuilder for bottom pinning & keyboard friendliness
+          SafeArea(
+            child: Consumer<AuthViewModel>(
+              builder: (context, vm, child) {
+                return FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
+                          ),
+                          child: Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 24.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                // Top & Middle Content
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    // Top Bar with back button
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4.0),
+                                      child: Row(
+                                        children: [
+                                          if (Navigator.canPop(context))
+                                            GestureDetector(
+                                              onTap: () =>
+                                                  Navigator.maybePop(context),
+                                              child: Container(
+                                                width: 38,
+                                                height: 38,
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      const Color(0xFFF1F5F9),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                child: const Center(
+                                                  child: Icon(
+                                                    Icons
+                                                        .arrow_back_ios_new_rounded,
+                                                    size: 16,
+                                                    color: Color(0xFF1E293B),
                                                   ),
                                                 ),
                                               ),
-                                          ],
-                                        ),
-                                      ),
-
-                                      const SizedBox(height: 8),
-
-                                      // 3D Phone Shield Illustration
-                                      AnimatedBuilder(
-                                        animation: _floatAnimation,
-                                        builder: (context, child) => Transform.translate(
-                                          offset: Offset(0, _floatAnimation.value),
-                                          child: child,
-                                        ),
-                                        child: Image.asset(
-                                          'assets/images/cooli_otp_shield.png',
-                                          width: 220,
-                                          height: 220,
-                                          fit: BoxFit.contain,
-                                          errorBuilder: (_, __, ___) =>
-                                              const _OtpPhoneIllustration(),
-                                        ),
-                                      ),
-
-                                      const SizedBox(height: 16),
-
-                                      // Title: "Verify Your Number"
-                                      const Text(
-                                        'Verify Your Number',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.w800,
-                                          color: Color(0xFF181E28),
-                                          letterSpacing: -0.3,
-                                        ),
-                                      ),
-
-                                      const SizedBox(height: 8),
-
-                                      // Subtitle: "We've sent a 4 digit code to"
-                                      const Text(
-                                        "We've sent a 4 digit code to",
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Color(0xFF8C96A6),
-                                          fontWeight: FontWeight.w400,
-                                        ),
-                                      ),
-
-                                      const SizedBox(height: 4),
-
-                                      // Phone Number: "+91 98765 43210"
-                                      Text(
-                                        phoneDisplay,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontSize: 15,
-                                          color: Color(0xFF181E28),
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: 0.2,
-                                        ),
-                                      ),
-
-                                      const SizedBox(height: 26),
-
-                                      // 4 OTP Input Boxes (Perfect spacious squircle boxes)
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: List.generate(_otpLength, (index) {
-                                          final isFilled =
-                                              _controllers[index].text.isNotEmpty;
-                                          final isFocused = _focusNodes[index].hasFocus;
-
-                                          return Container(
-                                            width: 60,
-                                            height: 60,
-                                            margin: const EdgeInsets.symmetric(horizontal: 8),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius: BorderRadius.circular(16),
-                                              border: Border.all(
-                                                color: isFocused
-                                                    ? const Color(0xFF3852E8)
-                                                    : isFilled
-                                                        ? const Color(0xFFC7D2FE)
-                                                        : const Color(0xFFE2E8F0),
-                                                width: isFocused ? 1.8 : 1.2,
-                                              ),
-                                              boxShadow: isFocused
-                                                  ? [
-                                                      BoxShadow(
-                                                        color: const Color(0xFF3852E8)
-                                                            .withValues(alpha: 0.18),
-                                                        blurRadius: 10,
-                                                        offset: const Offset(0, 3),
-                                                      ),
-                                                    ]
-                                                  : [
-                                                      BoxShadow(
-                                                        color: Colors.black
-                                                            .withValues(alpha: 0.04),
-                                                        blurRadius: 6,
-                                                        offset: const Offset(0, 2),
-                                                      ),
-                                                    ],
                                             ),
-                                            child: Center(
-                                              child: TextField(
-                                                controller: _controllers[index],
-                                                focusNode: _focusNodes[index],
-                                                textAlign: TextAlign.center,
-                                                textAlignVertical:
-                                                    TextAlignVertical.center,
-                                                keyboardType: TextInputType.number,
-                                                inputFormatters: [
-                                                  FilteringTextInputFormatter.digitsOnly,
-                                                ],
-                                                maxLength: 1,
-                                                style: const TextStyle(
-                                                  fontSize: 22,
-                                                  fontWeight: FontWeight.w800,
-                                                  color: Color(0xFF181E28),
-                                                  height: 1.0,
-                                                ),
-                                                decoration: const InputDecoration(
-                                                  counterText: '',
-                                                  border: InputBorder.none,
-                                                  enabledBorder: InputBorder.none,
-                                                  focusedBorder: InputBorder.none,
-                                                  errorBorder: InputBorder.none,
-                                                  disabledBorder: InputBorder.none,
-                                                  filled: false,
-                                                  isDense: true,
-                                                  contentPadding: EdgeInsets.zero,
-                                                ),
-                                                onChanged: (val) =>
-                                                    _onDigitChanged(val, index),
-                                                onTap: () {
-                                                  _controllers[index].selection =
-                                                      TextSelection.fromPosition(
-                                                    TextPosition(
+                                        ],
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 8),
+
+                                    // 3D Phone Shield Illustration
+                                    AnimatedBuilder(
+                                      animation: _floatAnimation,
+                                      builder: (context, child) =>
+                                          Transform.translate(
+                                        offset:
+                                            Offset(0, _floatAnimation.value),
+                                        child: child,
+                                      ),
+                                      child: Image.asset(
+                                        'assets/images/cooli_otp_shield.png',
+                                        width: 220,
+                                        height: 220,
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (_, __, ___) =>
+                                            const _OtpPhoneIllustration(),
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 16),
+
+                                    // Title: "Verify Your Number"
+                                    const Text(
+                                      'Verify Your Number',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF181E28),
+                                        letterSpacing: -0.3,
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 8),
+
+                                    // Subtitle: "We've sent a 4 digit code to"
+                                    const Text(
+                                      "We've sent a 4 digit code to",
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Color(0xFF8C96A6),
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 4),
+
+                                    // Phone Number: "+91 98765 43210"
+                                    Text(
+                                      phoneDisplay,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        color: Color(0xFF181E28),
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 0.2,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 26),
+
+                                    // 4 OTP Input Boxes (Perfect spacious squircle boxes)
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children:
+                                          List.generate(_otpLength, (index) {
+                                        final isFilled =
+                                            _controllers[index].text.isNotEmpty;
+                                        final isFocused =
+                                            _focusNodes[index].hasFocus;
+
+                                        return Container(
+                                          width: 60,
+                                          height: 60,
+                                          margin: const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                            border: Border.all(
+                                              color: isFocused
+                                                  ? const Color(0xFF3852E8)
+                                                  : isFilled
+                                                      ? const Color(0xFFC7D2FE)
+                                                      : const Color(0xFFE2E8F0),
+                                              width: isFocused ? 1.8 : 1.2,
+                                            ),
+                                            boxShadow: isFocused
+                                                ? [
+                                                    BoxShadow(
+                                                      color: const Color(
+                                                              0xFF3852E8)
+                                                          .withValues(
+                                                              alpha: 0.18),
+                                                      blurRadius: 10,
                                                       offset:
-                                                          _controllers[index].text.length,
+                                                          const Offset(0, 3),
                                                     ),
-                                                  );
-                                                },
-                                              ),
-                                            ),
-                                          );
-                                        }),
-                                      ),
-
-                                      const SizedBox(height: 22),
-
-                                      // Resend code in 00:21
-                                      GestureDetector(
-                                        onTap: _resendSeconds == 0 ? _handleResendOtp : null,
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            const Text(
-                                              'Resend code in ',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
-                                                color: Color(0xFF3852E8),
-                                              ),
-                                            ),
-                                            Text(
-                                              '00:${_resendSeconds.toString().padLeft(2, '0')}',
+                                                  ]
+                                                : [
+                                                    BoxShadow(
+                                                      color: Colors.black
+                                                          .withValues(
+                                                              alpha: 0.04),
+                                                      blurRadius: 6,
+                                                      offset:
+                                                          const Offset(0, 2),
+                                                    ),
+                                                  ],
+                                          ),
+                                          child: Center(
+                                            child: TextField(
+                                              controller: _controllers[index],
+                                              focusNode: _focusNodes[index],
+                                              textAlign: TextAlign.center,
+                                              textAlignVertical:
+                                                  TextAlignVertical.center,
+                                              keyboardType:
+                                                  TextInputType.number,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter
+                                                    .digitsOnly,
+                                              ],
+                                              maxLength: 1,
                                               style: const TextStyle(
-                                                fontSize: 14,
+                                                fontSize: 22,
                                                 fontWeight: FontWeight.w800,
-                                                color: Color(0xFF3852E8),
+                                                color: Color(0xFF181E28),
+                                                height: 1.0,
                                               ),
+                                              decoration: const InputDecoration(
+                                                counterText: '',
+                                                border: InputBorder.none,
+                                                enabledBorder: InputBorder.none,
+                                                focusedBorder: InputBorder.none,
+                                                errorBorder: InputBorder.none,
+                                                disabledBorder:
+                                                    InputBorder.none,
+                                                filled: false,
+                                                isDense: true,
+                                                contentPadding: EdgeInsets.zero,
+                                              ),
+                                              onChanged: (val) =>
+                                                  _onDigitChanged(val, index),
+                                              onTap: () {
+                                                _controllers[index].selection =
+                                                    TextSelection.fromPosition(
+                                                  TextPosition(
+                                                    offset: _controllers[index]
+                                                        .text
+                                                        .length,
+                                                  ),
+                                                );
+                                              },
                                             ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                          ),
+                                        );
+                                      }),
+                                    ),
 
-                                  // Bottom Pinned CTA Button
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 32, bottom: 20),
-                                    child: Container(
-                                      width: double.infinity,
-                                      height: 54,
-                                      decoration: BoxDecoration(
-                                        gradient: const LinearGradient(
-                                          colors: [
-                                            Color(0xFF3852E8),
-                                            Color(0xFF4568F8),
-                                          ],
-                                          begin: Alignment.centerLeft,
-                                          end: Alignment.centerRight,
-                                        ),
-                                        borderRadius: BorderRadius.circular(30),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: const Color(0xFF3852E8)
-                                                .withValues(alpha: 0.38),
-                                            blurRadius: 18,
-                                            offset: const Offset(0, 8),
+                                    const SizedBox(height: 22),
+
+                                    // Resend code in 00:21
+                                    GestureDetector(
+                                      onTap: _resendSeconds == 0
+                                          ? _handleResendOtp
+                                          : null,
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          const Text(
+                                            'Resend code in ',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF3852E8),
+                                            ),
+                                          ),
+                                          Text(
+                                            '00:${_resendSeconds.toString().padLeft(2, '0')}',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xFF3852E8),
+                                            ),
                                           ),
                                         ],
                                       ),
-                                      child: Material(
-                                        color: Colors.transparent,
-                                        child: InkWell(
-                                          borderRadius: BorderRadius.circular(30),
-                                          onTap: vm.isLoading ? null : _handleVerify,
-                                          child: Center(
-                                            child: vm.isLoading
-                                                ? const SizedBox(
-                                                    width: 24,
-                                                    height: 24,
-                                                    child: CircularProgressIndicator(
-                                                      strokeWidth: 2.5,
-                                                      valueColor:
-                                                          AlwaysStoppedAnimation<Color>(
-                                                        Colors.white,
+                                    ),
+                                  ],
+                                ),
+
+                                // Bottom Pinned CTA Button
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                      top: 32, bottom: 20),
+                                  child: Container(
+                                    width: double.infinity,
+                                    height: 54,
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFF3852E8),
+                                          Color(0xFF4568F8),
+                                        ],
+                                        begin: Alignment.centerLeft,
+                                        end: Alignment.centerRight,
+                                      ),
+                                      borderRadius: BorderRadius.circular(30),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFF3852E8)
+                                              .withValues(alpha: 0.38),
+                                          blurRadius: 18,
+                                          offset: const Offset(0, 8),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(30),
+                                        onTap:
+                                            vm.isLoading ? null : _handleVerify,
+                                        child: Center(
+                                          child: vm.isLoading
+                                              ? const SizedBox(
+                                                  width: 24,
+                                                  height: 24,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                    strokeWidth: 2.5,
+                                                    valueColor:
+                                                        AlwaysStoppedAnimation<
+                                                            Color>(
+                                                      Colors.white,
+                                                    ),
+                                                  ),
+                                                )
+                                              : const Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      'Verify',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        letterSpacing: 0.3,
                                                       ),
                                                     ),
-                                                  )
-                                                : const Row(
-                                                    mainAxisSize: MainAxisSize.min,
-                                                    children: [
-                                                      Text(
-                                                        'Verify',
-                                                        style: TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 16,
-                                                          fontWeight: FontWeight.w700,
-                                                          letterSpacing: 0.3,
-                                                        ),
-                                                      ),
-                                                      SizedBox(width: 8),
-                                                      Icon(
-                                                        Icons.arrow_forward_rounded,
-                                                        color: Colors.white,
-                                                        size: 20,
-                                                      ),
-                                                    ],
-                                                  ),
-                                          ),
+                                                    SizedBox(width: 8),
+                                                    Icon(
+                                                      Icons
+                                                          .arrow_forward_rounded,
+                                                      color: Colors.white,
+                                                      size: 20,
+                                                    ),
+                                                  ],
+                                                ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

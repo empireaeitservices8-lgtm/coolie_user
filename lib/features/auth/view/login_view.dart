@@ -22,9 +22,9 @@ class _LoginViewState extends State<LoginView> {
   final FocusNode _phoneFocusNode = FocusNode();
 
   @override
-  void initState() {
-    super.initState();
-    _viewModel = AuthViewModel();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _viewModel = context.read<AuthViewModel>();
   }
 
   @override
@@ -62,6 +62,16 @@ class _LoginViewState extends State<LoginView> {
     final response = await _viewModel.sendLoginOtp(formattedPhone);
 
     if (mounted) {
+      if (!response.success && response.message.isNotEmpty) {
+        showCooliToast(
+          context,
+          message: response.message,
+          icon: Icons.error_outline_rounded,
+          iconColor: Colors.redAccent,
+        );
+        return;
+      }
+
       showCooliToast(
         context,
         message: response.message,
@@ -75,7 +85,6 @@ class _LoginViewState extends State<LoginView> {
         arguments: OtpVerificationArgs(
           phoneNumber: formattedPhone,
           isRegisterFlow: false,
-          serverOtp: response.otpCode,
         ),
       );
     }
@@ -83,11 +92,9 @@ class _LoginViewState extends State<LoginView> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider.value(
-      value: _viewModel,
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        body: Stack(
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Stack(
           children: [
             // Top Right Organic Lavender Fluid Wave Shape
             Positioned(
@@ -352,7 +359,6 @@ class _LoginViewState extends State<LoginView> {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }

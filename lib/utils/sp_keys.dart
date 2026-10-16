@@ -9,3 +9,7 @@ const keyUserId = "KEY_USER_ID";
 const keyRoleId = "KEY_ROLE_ID";
 const keyRole = "KEY_ROLE";
 const keyLocalAuthStatus = "local_auth_status";
+const keyIsLoggedIn = "KEY_IS_LOGGED_IN";
+const keyUserAddress = "KEY_USER_ADDRESS";
+const keyWalletBalance = "KEY_WALLET_BALANCE";
+const keyWalletTransactions = "KEY_WALLET_TRANSACTIONS";

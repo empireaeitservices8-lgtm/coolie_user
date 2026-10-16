@@ -1,6 +1,7 @@
 import 'package:cooli/features/auth/model/auth_model.dart';
 import 'package:cooli/features/auth/repo/auth_repo.dart';
 import 'package:cooli/providers/view_model.dart';
+import 'package:cooli/services/session_manager.dart';
 
 class AuthViewModel extends ViewModel {
   final AuthRepo _repo;
@@ -77,7 +78,7 @@ class AuthViewModel extends ViewModel {
     } catch (_) {
       const fallback = SendOtpResponse(
         message: 'OTP sent successfully',
-        otpCode: '1234',
+        otpCode: '2393',
         expiresIn: '10 minutes',
         success: true,
       );
@@ -93,8 +94,11 @@ class AuthViewModel extends ViewModel {
     isLoading = true;
     notifyListeners();
     try {
-      return await _repo.verifyOtp(phoneNumber: phone, otp: otp);
-    } catch (_) {
+      final res = await _repo.verifyOtp(phoneNumber: phone, otp: otp);
+      print('✅ [AuthViewModel] Verify OTP Response: $res');
+      return res;
+    } catch (e) {
+      print('❌ [AuthViewModel] Verify OTP Exception: $e');
       return const VerifyOtpResponse(
         message: 'OTP verification failed',
         success: false,
@@ -110,8 +114,21 @@ class AuthViewModel extends ViewModel {
     notifyListeners();
     try {
       final res = await _repo.login(phoneNumber: phone, otp: otp);
-      if (res.user != null) {
-        _currentUser = res.user;
+      if (res.success) {
+        var user = res.user ??
+            UserModel(
+              id: '1',
+              fullName: 'User',
+              email: '',
+              phoneNumber: phone,
+            );
+
+        _currentUser = user;
+        await SessionManager().saveUserSession(user: user, token: user.token);
+        if (user.fullName.isNotEmpty && user.fullName != 'User') {
+          await SessionManager().updateUserName(user.fullName);
+        }
+        notifyListeners();
       }
       return res;
     } catch (_) {
@@ -132,8 +149,24 @@ class AuthViewModel extends ViewModel {
     notifyListeners();
     try {
       final res = await _repo.register(request: request);
-      if (res.user != null) {
-        _currentUser = res.user;
+      if (res.success) {
+        var user = res.user ??
+            UserModel(
+              id: '1',
+              fullName: request.name,
+              email: request.email,
+              phoneNumber: request.mobileNumber,
+              address: request.address,
+            );
+        if (user.fullName.isEmpty || user.fullName == 'User') {
+          user = user.copyWith(fullName: request.name);
+        }
+        _currentUser = user;
+        await SessionManager().saveUserSession(user: user, token: user.token);
+        if (user.fullName.isNotEmpty && user.fullName != 'User') {
+          await SessionManager().updateUserName(user.fullName);
+        }
+        notifyListeners();
       }
       return res;
     } catch (_) {
@@ -145,5 +178,11 @@ class AuthViewModel extends ViewModel {
       isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> logout() async {
+    _currentUser = null;
+    await SessionManager().clearSession();
+    notifyListeners();
   }
 }

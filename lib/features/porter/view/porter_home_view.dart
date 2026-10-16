@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cooli/features/porter/view_model/porter_view_model.dart';
 import 'package:cooli/features/porter/view/book_porter_view.dart';
-import 'package:cooli/features/porter/view/track_porter_view.dart';
+import 'package:cooli/features/porter/view/my_porter_bookings_view.dart';
 import 'package:cooli/utils/cooli_theme.dart';
 
 class PorterHomeView extends StatefulWidget {
@@ -15,20 +15,10 @@ class PorterHomeView extends StatefulWidget {
 }
 
 class _PorterHomeViewState extends State<PorterHomeView> {
-  late PorterViewModel _viewModel;
-
-  @override
-  void initState() {
-    super.initState();
-    _viewModel = PorterViewModel();
-  }
-
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider.value(
-      value: _viewModel,
-      child: Scaffold(
-        backgroundColor: CooliColors.background,
+    return Scaffold(
+      backgroundColor: CooliColors.background,
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
@@ -126,7 +116,7 @@ class _PorterHomeViewState extends State<PorterHomeView> {
                     iconColor: CooliColors.primary,
                     bgColor: CooliColors.primarySoft,
                     onTap: () {
-                      Navigator.pushNamed(context, TrackPorterView.routeName);
+                      Navigator.pushNamed(context, MyPorterBookingsView.routeName);
                     },
                   ),
                 ],
@@ -134,9 +124,8 @@ class _PorterHomeViewState extends State<PorterHomeView> {
             );
           },
         ),
-      ),
-    );
-  }
+      );
+    }
 
   Widget _buildOptionCard({
     required String title,

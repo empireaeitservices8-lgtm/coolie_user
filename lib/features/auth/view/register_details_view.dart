@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:cooli/features/auth/model/auth_model.dart';
 import 'package:cooli/features/auth/view_model/auth_view_model.dart';
 import 'package:cooli/features/dashboard/view/main_navigation_view.dart';
+import 'package:cooli/features/dashboard/view_model/dashboard_view_model.dart';
+import 'package:cooli/features/profile/view_model/profile_view_model.dart';
 import 'package:cooli/widgets/cooli_widgets.dart';
 
 class RegisterDetailsView extends StatefulWidget {
@@ -33,10 +35,15 @@ class _RegisterDetailsViewState extends State<RegisterDetailsView> {
   @override
   void initState() {
     super.initState();
-    _viewModel = AuthViewModel();
     for (var f in [_nameFocus, _addressFocus, _emailFocus]) {
       f.addListener(() => setState(() {}));
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _viewModel = context.read<AuthViewModel>();
   }
 
   @override
@@ -223,6 +230,14 @@ class _RegisterDetailsViewState extends State<RegisterDetailsView> {
         iconColor: const Color(0xFF10B981),
       );
 
+      try {
+        await context.read<ProfileViewModel>().loadUser();
+        await context.read<DashboardViewModel>().refreshUserData();
+      } catch (e) {
+        debugPrint('Error syncing providers on register: $e');
+      }
+
+      if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(
         context,
         MainNavigationView.routeName,
@@ -242,12 +257,10 @@ class _RegisterDetailsViewState extends State<RegisterDetailsView> {
   Widget build(BuildContext context) {
     final args = _getArgs();
 
-    return ChangeNotifierProvider.value(
-      value: _viewModel,
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        body: Stack(
-          children: [
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
             // Top Right & Bottom Decorative Organic Lavender Shapes
             Positioned(
               top: -60,
@@ -539,7 +552,6 @@ class _RegisterDetailsViewState extends State<RegisterDetailsView> {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }

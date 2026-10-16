@@ -22,9 +22,9 @@ class _RegisterViewState extends State<RegisterView> {
   final FocusNode _phoneFocusNode = FocusNode();
 
   @override
-  void initState() {
-    super.initState();
-    _viewModel = AuthViewModel();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _viewModel = context.read<AuthViewModel>();
   }
 
   @override
@@ -75,7 +75,6 @@ class _RegisterViewState extends State<RegisterView> {
         arguments: OtpVerificationArgs(
           phoneNumber: formattedPhone,
           isRegisterFlow: true,
-          serverOtp: response.otpCode,
         ),
       );
     }
@@ -83,11 +82,9 @@ class _RegisterViewState extends State<RegisterView> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider.value(
-      value: _viewModel,
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        body: Stack(
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Stack(
           children: [
             // Top Right & Bottom Decorative Organic Lavender Shapes
             Positioned(
@@ -352,7 +349,6 @@ class _RegisterViewState extends State<RegisterView> {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }

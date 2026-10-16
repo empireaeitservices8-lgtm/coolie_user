@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:cooli/features/services/view/service_confirmed_view.dart';
+import 'package:cooli/features/wallet/view_model/wallet_view_model.dart';
 
 class PostTruckRequirementView extends StatefulWidget {
   static const String routeName = '/post-truck-requirement';
@@ -27,6 +29,7 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
   late String _pickupDateTime;
   late String _expectedFare;
   late String _specialRequirements;
+  String _paymentMethod = 'Cash on Delivery';
   bool _isFavorite = false;
 
   @override
@@ -40,6 +43,12 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
     _pickupDateTime = '22 Apr 2025, 10:00 AM';
     _expectedFare = widget.initialFare != null ? '₹ ${widget.initialFare}' : '₹ 18,000 – 22,000';
     _specialRequirements = '• Cover required\n• No night travel';
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<WalletViewModel>().loadWalletData(userId: 1);
+      }
+    });
   }
 
   void _editField({
@@ -154,6 +163,200 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
         ),
       );
     }
+  }
+
+  void _showPaymentSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetCtx) {
+        return Consumer<WalletViewModel>(
+          builder: (context, walletVM, _) {
+            final balance = walletVM.balance;
+            return Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE2E8F0),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Payment Method',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEEF2FF),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'Hire Truck',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF4F46E5),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Choose how you want to settle the freight fare',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 1. Cash on Delivery Option
+                    _buildPaymentSelectorTile(
+                      title: 'Cash on Delivery',
+                      subtitle: 'Pay cash to transporter on unloading',
+                      icon: Icons.payments_rounded,
+                      color: const Color(0xFF16A34A),
+                    ),
+
+                    // 2. UPI Option
+                    _buildPaymentSelectorTile(
+                      title: 'UPI',
+                      subtitle: 'Google Pay, PhonePe, Paytm, BHIM',
+                      icon: Icons.account_balance_rounded,
+                      color: const Color(0xFF2563EB),
+                    ),
+
+                    // 3. Coolie Wallet Option
+                    _buildPaymentSelectorTile(
+                      title: 'Coolie Wallet',
+                      subtitle: 'Available Balance: ₹${balance.toStringAsFixed(2)}',
+                      icon: Icons.account_balance_wallet_rounded,
+                      color: Colors.purple,
+                      badge: '₹${balance.toStringAsFixed(0)}',
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildPaymentSelectorTile({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    String? badge,
+  }) {
+    final isSelected = _paymentMethod == title;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: isSelected ? color.withValues(alpha: 0.08) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isSelected ? color : const Color(0xFFE2E8F0),
+          width: isSelected ? 1.8 : 1.0,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: ListTile(
+          onTap: () {
+            setState(() => _paymentMethod = title);
+            Navigator.pop(context);
+          },
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          title: Row(
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+              if (badge != null) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.shade50,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.purple.shade200),
+                  ),
+                  child: Text(
+                    badge,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.purple,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          subtitle: Text(
+            subtitle,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+          ),
+          trailing: Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isSelected ? color : const Color(0xFFCBD5E1),
+                width: 2,
+              ),
+              color: isSelected ? color : Colors.transparent,
+            ),
+            child: isSelected
+                ? const Icon(Icons.check, size: 14, color: Colors.white)
+                : null,
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildRequirementCard({
@@ -486,6 +689,26 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
                           ),
                         ),
 
+                        // 9. Payment Method (Cash, UPI, Wallet)
+                        Consumer<WalletViewModel>(
+                          builder: (context, walletVM, _) {
+                            final balance = walletVM.balance;
+                            final isWallet = _paymentMethod == 'Coolie Wallet';
+                            return _buildRequirementCard(
+                              icon: isWallet
+                                  ? Icons.account_balance_wallet_rounded
+                                  : (_paymentMethod == 'UPI'
+                                      ? Icons.account_balance_rounded
+                                      : Icons.payments_rounded),
+                              label: 'Payment Method',
+                              value: isWallet
+                                  ? 'Coolie Wallet (Balance: ₹${balance.toStringAsFixed(0)})'
+                                  : _paymentMethod,
+                              onTap: _showPaymentSelector,
+                            );
+                          },
+                        ),
+
                         const SizedBox(height: 80),
                       ],
                     ),
@@ -500,7 +723,75 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
+                        if (_paymentMethod == 'Coolie Wallet') {
+                          final walletVM = context.read<WalletViewModel>();
+                          final balance = walletVM.balance;
+                          if (balance < 500) {
+                            showDialog(
+                              context: context,
+                              builder: (dialogCtx) => AlertDialog(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                title: const Text(
+                                  'Insufficient Wallet Balance',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                ),
+                                content: Text(
+                                  'Your Coolie Wallet balance is ₹${balance.toStringAsFixed(2)}. An advance of ₹500 is required to confirm this truck requirement.',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Color(0xFF475569),
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.pop(dialogCtx);
+                                      setState(() => _paymentMethod = 'Cash on Delivery');
+                                    },
+                                    child: const Text('Use Cash'),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () => Navigator.pop(dialogCtx),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF4F46E5),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    child: const Text('OK', style: TextStyle(color: Colors.white)),
+                                  ),
+                                ],
+                              ),
+                            );
+                            return;
+                          }
+
+                          // Deduct booking advance from wallet
+                          await walletVM.deductFunds(
+                            amount: 500,
+                            title: 'Truck Booking Advance ($_truckType)',
+                          );
+
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '₹500 advance deducted from Coolie Wallet. Remaining balance: ₹${walletVM.balance.toStringAsFixed(2)}',
+                                ),
+                                backgroundColor: const Color(0xFF10B981),
+                              ),
+                            );
+                          }
+                        }
+
+                        if (!context.mounted) return;
+
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -511,6 +802,7 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
                               driverPhone: '+91 98765 43210',
                               pickupTime: _pickupDateTime,
                               truckType: _truckType,
+                              paymentMethod: _paymentMethod,
                             ),
                           ),
                         );
