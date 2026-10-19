@@ -51,6 +51,7 @@ import 'package:cooli/features/services/view/service_detail_view.dart';
 import 'package:cooli/features/services/view/book_service_view.dart';
 import 'package:cooli/features/services/view/service_confirmed_view.dart';
 import 'package:cooli/features/profile/view/profile_view.dart';
+import 'package:cooli/features/profile/view/edit_profile_view.dart';
 import 'package:cooli/features/activity/view/activity_view.dart';
 import 'package:cooli/features/wallet/view/wallet_view.dart';
 import 'package:cooli/features/ecommerce/model/product_model.dart';
@@ -160,6 +161,7 @@ Map<String, Widget Function(BuildContext context)> appRoutes() => {
       MyBookingsView.routeName: (context) => const MyBookingsView(),
       SavedAddressesView.routeName: (context) => const SavedAddressesView(),
       AddAddressView.routeName: (context) => const AddAddressView(),
+      EditProfileView.routeName: (context) => const EditProfileView(),
     };
 
 Widget? _getScreen(RouteSettings settings) {
@@ -222,6 +224,8 @@ Widget? _getScreen(RouteSettings settings) {
       return const SavedAddressesView();
     case AddAddressView.routeName:
       return const AddAddressView();
+    case EditProfileView.routeName:
+      return const EditProfileView();
     default:
       return null;
   }

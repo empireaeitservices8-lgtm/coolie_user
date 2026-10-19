@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cooli/features/auth/view_model/auth_view_model.dart';
 import 'package:cooli/features/splash/view_model/splash_view_model.dart';
 import 'package:cooli/features/onboarding/view/onboarding_view.dart';
 import 'package:cooli/features/dashboard/view/main_navigation_view.dart';
-import 'package:cooli/services/session_manager.dart';
-import 'package:cooli/services/web_api_services.dart';
 
 class SplashView extends StatefulWidget {
   static const String routeName = '/splash';
@@ -230,13 +229,12 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     if (_hasNavigated || !mounted) return;
     _hasNavigated = true;
 
-    final isLoggedIn = await SessionManager().isLoggedIn();
+    final authVm = context.read<AuthViewModel>();
+    final canAutoLogin = await authVm.tryAutoLogin();
     if (!mounted) return;
 
-    if (isLoggedIn) {
-      // User is already logged in: sync auth headers and keep them logged in
-      await WebAPIService().initTokenToHeader();
-      if (!mounted) return;
+    if (canAutoLogin) {
+      // User is already logged in with saved token: proceed to main app
       Navigator.of(context).pushNamedAndRemoveUntil(
         MainNavigationView.routeName,
         (route) => false,

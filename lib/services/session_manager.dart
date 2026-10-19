@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cooli/features/auth/model/auth_model.dart';
+import 'package:cooli/helpers/sp_helper.dart';
 import 'package:cooli/services/web_api_services.dart';
 import 'package:cooli/utils/sp_keys.dart' as sp_keys;
 
@@ -30,18 +31,63 @@ class SessionManager {
         _inMemoryUserName = name.trim();
         debugPrint('👤 [SessionManager] Loaded user name from SharedPreferences: $_inMemoryUserName');
       }
+
+      // Also ensure token is loaded into Dio header on app start
+      final token = await getToken();
+      if (token != null && token.isNotEmpty) {
+        await WebAPIService().initTokenToHeader();
+        debugPrint('🔑 [SessionManager] Restored saved token at startup: $token');
+      }
     } catch (e) {
       debugPrint('[SessionManager] init error: $e');
     }
   }
 
-  /// Checks if user has an active authenticated session
-  Future<bool> isLoggedIn() async {
+  /// Retrieves the saved token from SharedPreferences or FlutterSecureStorage
+  Future<String?> getToken() async {
     try {
       final sp = await SharedPreferences.getInstance();
-      final isLoggedIn = sp.getBool(sp_keys.keyIsLoggedIn) ?? false;
+      await sp.reload();
       final token = sp.getString(sp_keys.keyToken);
-      return isLoggedIn && token != null && token.isNotEmpty;
+      if (token != null && token.trim().isNotEmpty) {
+        return token.trim();
+      }
+      final secureToken = await SpHelper.getString(sp_keys.keyToken, secure: true);
+      if (secureToken != null && secureToken.trim().isNotEmpty) {
+        await sp.setString(sp_keys.keyToken, secureToken.trim());
+        return secureToken.trim();
+      }
+    } catch (e) {
+      debugPrint('[SessionManager] getToken error: $e');
+    }
+    return null;
+  }
+
+  /// Saves the authentication token and initializes Dio headers
+  Future<void> saveToken(String token) async {
+    try {
+      final clean = token.trim();
+      if (clean.isEmpty) return;
+      final sp = await SharedPreferences.getInstance();
+      await sp.setString(sp_keys.keyToken, clean);
+      await sp.setBool(sp_keys.keyIsLoggedIn, true);
+      await SpHelper.saveString(sp_keys.keyToken, clean, secure: true);
+      await WebAPIService().initTokenToHeader();
+      debugPrint('🔑 [SessionManager] Token saved successfully: $clean');
+    } catch (e) {
+      debugPrint('[SessionManager] saveToken error: $e');
+    }
+  }
+
+  /// Checks if user has an active authenticated session with a token
+  Future<bool> isLoggedIn() async {
+    try {
+      final token = await getToken();
+      if (token != null && token.isNotEmpty) {
+        return true;
+      }
+      final sp = await SharedPreferences.getInstance();
+      return sp.getBool(sp_keys.keyIsLoggedIn) ?? false;
     } catch (e) {
       debugPrint('[SessionManager] isLoggedIn error: $e');
       return false;
@@ -55,12 +101,16 @@ class SessionManager {
   }) async {
     try {
       final sp = await SharedPreferences.getInstance();
-      final effectiveToken = token ??
-          user.token ??
-          'cooli_token_${user.id}_${DateTime.now().millisecondsSinceEpoch}';
+      final effectiveToken = (token != null && token.trim().isNotEmpty)
+          ? token.trim()
+          : ((user.token != null && user.token!.trim().isNotEmpty)
+              ? user.token!.trim()
+              : (sp.getString(sp_keys.keyToken) ??
+                  'cooli_token_${user.id}_${DateTime.now().millisecondsSinceEpoch}'));
 
       await sp.setBool(sp_keys.keyIsLoggedIn, true);
       await sp.setString(sp_keys.keyToken, effectiveToken);
+      await SpHelper.saveString(sp_keys.keyToken, effectiveToken, secure: true);
       await sp.setString(sp_keys.keyUserId, user.id);
       if (user.fullName.trim().isNotEmpty &&
           user.fullName.trim().toLowerCase() != 'user') {
@@ -83,7 +133,7 @@ class SessionManager {
       await WebAPIService().initTokenToHeader();
 
       debugPrint('======================================================');
-      debugPrint('✅ [SessionManager] USER SESSION SAVED');
+      debugPrint('✅ [SessionManager] USER SESSION SAVED WITH TOKEN');
       debugPrint('👤 Name: ${user.fullName}');
       debugPrint('📱 Phone: ${user.phoneNumber}');
       debugPrint('🔑 Token: $effectiveToken');
@@ -225,6 +275,9 @@ class SessionManager {
       await sp.remove(sp_keys.keyUseMobile);
       await sp.remove(sp_keys.keyEmail);
       await sp.remove(sp_keys.keyUserAddress);
+
+      // Clear secure storage token
+      await SpHelper.saveString(sp_keys.keyToken, '', secure: true);
 
       // Remove Authorization header from Dio
       if (WebAPIService().dio.options.headers.containsKey('Authorization')) {

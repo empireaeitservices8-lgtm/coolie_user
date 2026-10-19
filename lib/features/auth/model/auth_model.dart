@@ -42,7 +42,8 @@ class UserModel {
   }
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
-    String? pickFirstNonEmpty(List<dynamic> candidates, {bool allowUser = false}) {
+    String? pickFirstNonEmpty(List<dynamic> candidates,
+        {bool allowUser = false}) {
       for (final c in candidates) {
         if (c != null && c.toString().trim().isNotEmpty) {
           final s = c.toString().trim();
@@ -75,53 +76,57 @@ class UserModel {
                     : null)));
 
     final rawName = pickFirstNonEmpty([
-      profileMap?['name'],
-      profileMap?['full_name'],
-      profileMap?['user_name'],
-      profileMap?['username'],
-      profileMap?['first_name'],
-      userMap['name'],
-      userMap['full_name'],
-      userMap['user_name'],
-      userMap['username'],
-      userMap['first_name'],
-      json['name'],
-      json['full_name'],
-      json['user_name'],
-      json['username'],
-      json['first_name'],
-    ]) ?? 'User';
+          profileMap?['name'],
+          profileMap?['full_name'],
+          profileMap?['user_name'],
+          profileMap?['username'],
+          profileMap?['first_name'],
+          userMap['name'],
+          userMap['full_name'],
+          userMap['user_name'],
+          userMap['username'],
+          userMap['first_name'],
+          json['name'],
+          json['full_name'],
+          json['user_name'],
+          json['username'],
+          json['first_name'],
+        ]) ??
+        'User';
 
     final resolvedPhone = pickFirstNonEmpty([
-      userMap['mobile_number'],
-      userMap['phone_number'],
-      userMap['phone'],
-      userMap['user_mobile'],
-      profileMap?['mobile_number'],
-      profileMap?['phone_number'],
-      profileMap?['phone'],
-      json['mobile_number'],
-      json['phone_number'],
-      json['phone'],
-    ], allowUser: true) ?? '';
+          userMap['mobile_number'],
+          userMap['phone_number'],
+          userMap['phone'],
+          userMap['user_mobile'],
+          profileMap?['mobile_number'],
+          profileMap?['phone_number'],
+          profileMap?['phone'],
+          json['mobile_number'],
+          json['phone_number'],
+          json['phone'],
+        ], allowUser: true) ??
+        '';
 
     final resolvedId = pickFirstNonEmpty([
-      userMap['id'],
-      profileMap?['user'],
-      profileMap?['id'],
-      json['user_id'],
-      json['id'],
-      if (json['user'] is! Map) json['user'],
-    ], allowUser: true) ?? '1';
+          userMap['id'],
+          profileMap?['user'],
+          profileMap?['id'],
+          json['user_id'],
+          json['id'],
+          if (json['user'] is! Map) json['user'],
+        ], allowUser: true) ??
+        '1';
 
     return UserModel(
       id: (resolvedId != 'usr_1001' && resolvedId != '1001') ? resolvedId : '1',
       fullName: rawName,
       email: pickFirstNonEmpty([
-        profileMap?['email'],
-        userMap['email'],
-        json['email'],
-      ], allowUser: true) ?? '',
+            profileMap?['email'],
+            userMap['email'],
+            json['email'],
+          ], allowUser: true) ??
+          '',
       phoneNumber: resolvedPhone,
       address: pickFirstNonEmpty([
         profileMap?['address_line1'],
@@ -137,14 +142,57 @@ class UserModel {
         json['profile_photo'],
       ], allowUser: true),
       isVerified: userMap['is_verified'] == true || json['is_verified'] == true,
-      token: pickFirstNonEmpty([
-        json['token'],
-        json['access_token'],
-        userMap['token'],
-        userMap['access_token'],
-      ], allowUser: true),
+      token: extractTokenFromMap(json) ??
+          extractTokenFromMap(userMap) ??
+          pickFirstNonEmpty([
+            json['token'],
+            json['access_token'],
+            json['access'],
+            json['key'],
+            userMap['token'],
+            userMap['access_token'],
+            userMap['access'],
+          ], allowUser: true),
     );
   }
+}
+
+/// Helper function to reliably extract an auth token from any dynamic payload
+String? extractTokenFromMap(Map<dynamic, dynamic>? map) {
+  if (map == null) return null;
+
+  // 1. Direct token field names across common frameworks (Django SimpleJWT, Knox, DRF TokenAuth, FastAPI, Node)
+  final tokenKeys = [
+    'token',
+    'access_token',
+    'access',
+    'key',
+    'auth_token',
+    'authToken',
+    'jwt',
+    'authorization',
+  ];
+  for (final k in tokenKeys) {
+    if (map.containsKey(k) && map[k] != null) {
+      final val = map[k].toString().trim();
+      if (val.isNotEmpty && val.toLowerCase() != 'null') {
+        return val;
+      }
+    }
+  }
+
+  // 2. Check nested objects (e.g. { "data": { "token": "..." } } or { "tokens": { "access": "..." } })
+  final nestedContainers = ['data', 'user', 'tokens', 'response', 'auth', 'result'];
+  for (final containerKey in nestedContainers) {
+    if (map[containerKey] is Map) {
+      final nestedToken = extractTokenFromMap(map[containerKey] as Map);
+      if (nestedToken != null && nestedToken.isNotEmpty) {
+        return nestedToken;
+      }
+    }
+  }
+
+  return null;
 }
 
 class SendOtpResponse {
@@ -161,19 +209,17 @@ class SendOtpResponse {
   });
 
   factory SendOtpResponse.fromJson(Map<String, dynamic> json) {
-    final hasError = json.containsKey('error') || json.containsKey('detail');
-    final msg = json['message']?.toString() ??
-        json['error']?.toString() ??
-        json['detail']?.toString() ??
-        'OTP sent successfully';
+    final bool hasError = json.containsKey('error') ||
+        json['status'] == false ||
+        json['success'] == false;
+    final message = json['error']?.toString() ??
+        json['message']?.toString() ??
+        (hasError ? 'Failed to send OTP' : 'OTP sent successfully');
+
     return SendOtpResponse(
-      message: msg,
-      otpCode: json['otp_code']?.toString() ??
-          json['otp']?.toString() ??
-          json['code']?.toString(),
-      expiresIn: json['expires_in']?.toString() ??
-          json['expiresIn']?.toString() ??
-          '10 minutes',
+      message: message,
+      otpCode: json['otp_code']?.toString(),
+      expiresIn: json['expires_in']?.toString(),
       success: !hasError,
     );
   }
@@ -182,25 +228,55 @@ class SendOtpResponse {
 class VerifyOtpResponse {
   final String message;
   final String? mobileNumber;
+  final String? token;
+  final UserModel? user;
   final bool success;
 
   const VerifyOtpResponse({
     required this.message,
     this.mobileNumber,
+    this.token,
+    this.user,
     this.success = true,
   });
 
   factory VerifyOtpResponse.fromJson(Map<String, dynamic> json) {
+    final bool hasError = json.containsKey('error') ||
+        json['status'] == false ||
+        json['status'] == 'error' ||
+        json['success'] == false;
+    final message = json['error']?.toString() ??
+        json['message']?.toString() ??
+        (hasError ? 'Invalid or expired OTP' : 'OTP verified successfully');
+
+    final extractedToken = extractTokenFromMap(json);
+
+    UserModel? parsedUser;
+    if (json['user'] is Map) {
+      parsedUser = UserModel.fromJson(Map<String, dynamic>.from(json['user'] as Map));
+    } else if (json['data'] is Map &&
+        (json['data']['id'] != null ||
+            json['data']['mobile_number'] != null ||
+            json['data']['name'] != null)) {
+      parsedUser = UserModel.fromJson(Map<String, dynamic>.from(json['data'] as Map));
+    }
+
+    if (parsedUser != null && extractedToken != null && (parsedUser.token == null || parsedUser.token!.isEmpty)) {
+      parsedUser = parsedUser.copyWith(token: extractedToken);
+    }
+
     return VerifyOtpResponse(
-      message: json['message']?.toString() ?? 'OTP verified successfully',
+      message: message,
       mobileNumber: json['mobile_number']?.toString(),
-      success: true,
+      token: extractedToken ?? parsedUser?.token,
+      user: parsedUser,
+      success: !hasError,
     );
   }
 
   @override
   String toString() =>
-      'VerifyOtpResponse(message: $message, mobileNumber: $mobileNumber, success: $success)';
+      'VerifyOtpResponse(message: $message, mobileNumber: $mobileNumber, token: $token, success: $success)';
 }
 
 class RegisterRequest {
@@ -217,35 +293,58 @@ class RegisterRequest {
   });
 
   Map<String, dynamic> toJson() => {
-    'mobile_number': mobileNumber,
-    'name': name,
-    'email': email,
-    'address': address,
-  };
+        'mobile_number': mobileNumber,
+        'name': name,
+        'email': email,
+        'address': address,
+      };
 }
 
 class RegisterResponse {
   final String message;
   final UserModel? user;
+  final String? token;
   final bool success;
 
   const RegisterResponse({
     required this.message,
     this.user,
+    this.token,
     this.success = true,
   });
 
   factory RegisterResponse.fromJson(Map<String, dynamic> json) {
-    UserModel? user;
-    if (json['user'] != null) {
-      user = UserModel.fromJson(json);
-    } else if (json['id'] != null || json['token'] != null || json['access_token'] != null || json['mobile_number'] != null) {
-      user = UserModel.fromJson(json);
+    final bool hasError = json.containsKey('error') ||
+        json['status'] == false ||
+        json['status'] == 'error' ||
+        json['success'] == false;
+    final message = json['error']?.toString() ??
+        json['message']?.toString() ??
+        (hasError ? 'Registration failed' : 'Registration successful');
+
+    final extractedToken = extractTokenFromMap(json);
+
+    UserModel? parsedUser;
+    if (json['user'] is Map) {
+      parsedUser = UserModel.fromJson(Map<String, dynamic>.from(json['user'] as Map));
+    } else if (json['data'] is Map &&
+        (json['data']['id'] != null ||
+            json['data']['mobile_number'] != null ||
+            json['data']['name'] != null)) {
+      parsedUser = UserModel.fromJson(Map<String, dynamic>.from(json['data'] as Map));
+    } else if (json['id'] != null || json['mobile_number'] != null || json['name'] != null) {
+      parsedUser = UserModel.fromJson(json);
     }
+
+    if (parsedUser != null && extractedToken != null && (parsedUser.token == null || parsedUser.token!.isEmpty)) {
+      parsedUser = parsedUser.copyWith(token: extractedToken);
+    }
+
     return RegisterResponse(
-      message: json['message']?.toString() ?? 'Registration successful',
-      user: user,
-      success: true,
+      message: message,
+      user: parsedUser,
+      token: extractedToken ?? parsedUser?.token,
+      success: !hasError,
     );
   }
 }
@@ -253,42 +352,64 @@ class RegisterResponse {
 class LoginResponse {
   final String message;
   final UserModel? user;
+  final String? token;
+  final String? refreshToken;
   final bool profileComplete;
   final bool success;
 
   const LoginResponse({
     required this.message,
     this.user,
+    this.token,
+    this.refreshToken,
     this.profileComplete = true,
     this.success = true,
   });
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
-    UserModel? user;
-    if (json['user'] != null && json['user'] is Map) {
-      user = UserModel.fromJson(Map<String, dynamic>.from(json['user'] as Map));
-      if (user.token == null && (json['token'] != null || json['access_token'] != null)) {
-        user = user.copyWith(
-          token: json['token']?.toString() ?? json['access_token']?.toString(),
-        );
-      }
-    } else if (json['user'] != null) {
-      user = UserModel.fromJson(json);
-    } else if (json['data'] != null && json['data'] is Map) {
-      user = UserModel.fromJson(Map<String, dynamic>.from(json['data'] as Map));
+    final bool hasError = json.containsKey('error') ||
+        json['status'] == false ||
+        json['status'] == 'error' ||
+        json['success'] == false;
+    final message = json['error']?.toString() ??
+        json['message']?.toString() ??
+        (hasError ? 'Login failed' : 'Login successful');
+
+    final extractedToken = extractTokenFromMap(json);
+
+    UserModel? parsedUser;
+    if (json['user'] is Map) {
+      parsedUser = UserModel.fromJson(Map<String, dynamic>.from(json['user'] as Map));
+    } else if (json['data'] is Map &&
+        (json['data']['id'] != null ||
+            json['data']['mobile_number'] != null ||
+            json['data']['phone'] != null ||
+            json['data']['name'] != null)) {
+      parsedUser = UserModel.fromJson(Map<String, dynamic>.from(json['data'] as Map));
     } else if (json['id'] != null ||
-        json['user_id'] != null ||
-        json['token'] != null ||
-        json['access_token'] != null ||
-        json['mobile_number'] != null) {
-      user = UserModel.fromJson(json);
+        json['mobile_number'] != null ||
+        json['phone'] != null ||
+        json['name'] != null) {
+      parsedUser = UserModel.fromJson(json);
     }
+
+    if (parsedUser != null &&
+        extractedToken != null &&
+        (parsedUser.token == null || parsedUser.token!.isEmpty)) {
+      parsedUser = parsedUser.copyWith(token: extractedToken);
+    }
+
+    final refreshToken = json['refresh']?.toString() ??
+        (json['tokens'] is Map ? json['tokens']['refresh']?.toString() : null);
+
     return LoginResponse(
-      message: json['message']?.toString() ?? 'Login successful',
-      user: user,
-      profileComplete: json['profile_complete'] == true ||
-          json['profile_complete'] == null,
-      success: true,
+      message: message,
+      user: parsedUser,
+      token: extractedToken ?? parsedUser?.token,
+      refreshToken: refreshToken,
+      profileComplete:
+          json['profile_complete'] == true || json['profile_complete'] == null,
+      success: !hasError,
     );
   }
 }

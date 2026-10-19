@@ -62,21 +62,31 @@ class _RegisterViewState extends State<RegisterView> {
     final response = await _viewModel.sendOtp(formattedPhone);
 
     if (mounted) {
-      showCooliToast(
-        context,
-        message: response.message,
-        icon: Icons.mark_email_read_outlined,
-        iconColor: const Color(0xFF2563EB),
-      );
+      if (response.success) {
+        showCooliToast(
+          context,
+          message: response.message,
+          icon: Icons.mark_email_read_outlined,
+          iconColor: const Color(0xFF2563EB),
+        );
 
-      Navigator.pushNamed(
-        context,
-        OtpVerificationView.routeName,
-        arguments: OtpVerificationArgs(
-          phoneNumber: formattedPhone,
-          isRegisterFlow: true,
-        ),
-      );
+        Navigator.pushNamed(
+          context,
+          OtpVerificationView.routeName,
+          arguments: OtpVerificationArgs(
+            phoneNumber: formattedPhone,
+            isRegisterFlow: true,
+            serverOtp: response.otpCode,
+          ),
+        );
+      } else {
+        showCooliToast(
+          context,
+          message: response.message,
+          icon: Icons.error_outline_rounded,
+          iconColor: Colors.redAccent,
+        );
+      }
     }
   }
 
@@ -85,270 +95,275 @@ class _RegisterViewState extends State<RegisterView> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
-          children: [
-            // Top Right & Bottom Decorative Organic Lavender Shapes
-            Positioned(
-              top: -60,
-              right: -50,
-              child: Container(
-                width: 220,
-                height: 220,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFFE4E8FB).withValues(alpha: 0.7),
-                ),
+        children: [
+          // Top Right & Bottom Decorative Organic Lavender Shapes
+          Positioned(
+            top: -60,
+            right: -50,
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFE4E8FB).withValues(alpha: 0.7),
               ),
             ),
-            Positioned(
-              bottom: -60,
-              right: -50,
-              child: Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFFE4E8FB).withValues(alpha: 0.6),
-                ),
+          ),
+          Positioned(
+            bottom: -60,
+            right: -50,
+            child: Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFE4E8FB).withValues(alpha: 0.6),
               ),
             ),
+          ),
 
-            SafeArea(
-              child: Consumer<AuthViewModel>(
-                builder: (context, vm, child) {
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 12),
+          SafeArea(
+            child: Consumer<AuthViewModel>(
+              builder: (context, vm, child) {
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 12),
 
-                        // Back Button
-                        GestureDetector(
-                          onTap: () => Navigator.maybePop(context),
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Center(
-                              child: Icon(
-                                Icons.arrow_back_ios_new_rounded,
-                                size: 16,
-                                color: Color(0xFF1E293B),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // Cooli App Icon Badge
-                        Center(
-                          child: Container(
-                            width: 72,
-                            height: 72,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(22),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF0072CE).withValues(alpha: 0.22),
-                                  blurRadius: 18,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(22),
-                              child: Image.asset(
-                                'assets/images/app_logo.png',
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Title & Subtitle
-                        Center(
-                          child: Column(
-                            children: const [
-                              Text(
-                                'Register with Cooli',
-                                style: TextStyle(
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF0F172A),
-                                  letterSpacing: -0.5,
-                                ),
-                              ),
-                              SizedBox(height: 6),
-                              Text(
-                                'Enter your mobile number to begin registration',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF64748B),
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 36),
-
-                        // Mobile Number Input Field
-                        CooliPhoneInputField(
-                          controller: _phoneController,
-                          focusNode: _phoneFocusNode,
-                          label: 'Mobile Number',
-                          hintText: 'Enter 10 digit mobile number',
-                        ),
-
-                        const SizedBox(height: 28),
-
-                        // Send OTP Action Button
-                        Container(
-                          width: double.infinity,
-                          height: 54,
+                      // Back Button
+                      GestureDetector(
+                        onTap: () => Navigator.maybePop(context),
+                        child: Container(
+                          width: 40,
+                          height: 40,
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF2563EB), Color(0xFF4338CA)],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.arrow_back_ios_new_rounded,
+                              size: 16,
+                              color: Color(0xFF1E293B),
                             ),
-                            borderRadius: BorderRadius.circular(27),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Cooli App Icon Badge
+                      Center(
+                        child: Container(
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(22),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF2563EB).withValues(alpha: 0.35),
-                                blurRadius: 16,
+                                color: const Color(0xFF0072CE)
+                                    .withValues(alpha: 0.22),
+                                blurRadius: 18,
                                 offset: const Offset(0, 6),
                               ),
                             ],
                           ),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(27),
-                              onTap: vm.isLoading ? null : _handleSendOtp,
-                              child: Center(
-                                child: vm.isLoading
-                                    ? const SizedBox(
-                                        width: 22,
-                                        height: 22,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2.5,
-                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                        ),
-                                      )
-                                    : const Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            'Send OTP',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w700,
-                                              letterSpacing: 0.3,
-                                            ),
-                                          ),
-                                          SizedBox(width: 8),
-                                          Icon(
-                                            Icons.arrow_forward_rounded,
-                                            color: Colors.white,
-                                            size: 19,
-                                          ),
-                                        ],
-                                      ),
-                              ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(22),
+                            child: Image.asset(
+                              'assets/images/app_logo.png',
+                              fit: BoxFit.contain,
                             ),
                           ),
                         ),
+                      ),
 
-                        const SizedBox(height: 28),
+                      const SizedBox(height: 20),
 
-                        // Already have an account? Login
-                        Center(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text(
-                                'Already have an account? ',
+                      // Title & Subtitle
+                      Center(
+                        child: Column(
+                          children: const [
+                            Text(
+                              'Register with Cooli',
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                            SizedBox(height: 6),
+                            Text(
+                              'Enter your mobile number to begin registration',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF64748B),
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 36),
+
+                      // Mobile Number Input Field
+                      CooliPhoneInputField(
+                        controller: _phoneController,
+                        focusNode: _phoneFocusNode,
+                        label: 'Mobile Number',
+                        hintText: 'Enter 10 digit mobile number',
+                      ),
+
+                      const SizedBox(height: 28),
+
+                      // Send OTP Action Button
+                      Container(
+                        width: double.infinity,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF2563EB), Color(0xFF4338CA)],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ),
+                          borderRadius: BorderRadius.circular(27),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF2563EB)
+                                  .withValues(alpha: 0.35),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(27),
+                            onTap: vm.isLoading ? null : _handleSendOtp,
+                            child: Center(
+                              child: vm.isLoading
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                                Colors.white),
+                                      ),
+                                    )
+                                  : const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Send OTP',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                        SizedBox(width: 8),
+                                        Icon(
+                                          Icons.arrow_forward_rounded,
+                                          color: Colors.white,
+                                          size: 19,
+                                        ),
+                                      ],
+                                    ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 28),
+
+                      // Already have an account? Login
+                      Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              'Already have an account? ',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.pushReplacementNamed(
+                                  context,
+                                  LoginView.routeName,
+                                );
+                              },
+                              child: const Text(
+                                'Login',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Color(0xFF64748B),
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF2563EB),
                                 ),
                               ),
-                              GestureDetector(
-                                onTap: () {
-                                  Navigator.pushReplacementNamed(
-                                    context,
-                                    LoginView.routeName,
-                                  );
-                                },
-                                child: const Text(
-                                  'Login',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF2563EB),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
+                      ),
 
-                        const SizedBox(height: 36),
+                      const SizedBox(height: 36),
 
-                        // Terms Note
-                        Center(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                            child: RichText(
-                              textAlign: TextAlign.center,
-                              text: const TextSpan(
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF94A3B8),
-                                  height: 1.5,
-                                ),
-                                children: [
-                                  TextSpan(text: 'By continuing, you agree to our '),
-                                  TextSpan(
-                                    text: 'Terms of Service',
-                                    style: TextStyle(
-                                      color: Color(0xFF2563EB),
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  TextSpan(text: ' & '),
-                                  TextSpan(
-                                    text: 'Privacy Policy',
-                                    style: TextStyle(
-                                      color: Color(0xFF2563EB),
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
+                      // Terms Note
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: RichText(
+                            textAlign: TextAlign.center,
+                            text: const TextSpan(
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF94A3B8),
+                                height: 1.5,
                               ),
+                              children: [
+                                TextSpan(
+                                    text: 'By continuing, you agree to our '),
+                                TextSpan(
+                                  text: 'Terms of Service',
+                                  style: TextStyle(
+                                    color: Color(0xFF2563EB),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                TextSpan(text: ' & '),
+                                TextSpan(
+                                  text: 'Privacy Policy',
+                                  style: TextStyle(
+                                    color: Color(0xFF2563EB),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
+                      ),
 
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-                  );
-                },
-              ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                );
+              },
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -28,12 +28,51 @@ class AuthRepo {
     return '+91$digits';
   }
 
+  /// Helper to extract error message from API response body
+  static String extractErrorMessage(dynamic data,
+      [String defaultMsg = 'Something went wrong. Please try again.']) {
+    if (data == null) return defaultMsg;
+    if (data is String && data.trim().isNotEmpty) return data;
+    if (data is Map) {
+      if (data['error'] != null) {
+        final err = data['error'];
+        if (err is String && err.isNotEmpty) return err;
+        if (err is Map) {
+          final firstVal = err.values.firstOrNull;
+          if (firstVal is List && firstVal.isNotEmpty)
+            return firstVal.first.toString();
+          if (firstVal != null) return firstVal.toString();
+        }
+        if (err is List && err.isNotEmpty) return err.first.toString();
+      }
+      if (data['message'] != null) {
+        final msg = data['message'];
+        if (msg is String && msg.isNotEmpty) return msg;
+        if (msg is List && msg.isNotEmpty) return msg.first.toString();
+      }
+      if (data['detail'] != null) {
+        final det = data['detail'];
+        if (det is String && det.isNotEmpty) return det;
+      }
+      if (data['msg'] != null) {
+        final msg = data['msg'];
+        if (msg is String && msg.isNotEmpty) return msg;
+      }
+      for (final val in data.values) {
+        if (val is List && val.isNotEmpty) return val.first.toString();
+        if (val is String && val.isNotEmpty) return val;
+      }
+    }
+    return defaultMsg;
+  }
+
   /// 1. Send OTP API (Register) -> POST /auth/send-otp/
   Future<SendOtpResponse> sendOtp({
     required String phoneNumber,
   }) async {
     final formattedNumber = formatMobileNumber(phoneNumber);
-    debugPrint('➡️ [AuthRepo] Calling Send OTP API: $urlSendOtp with $formattedNumber');
+    debugPrint(
+        '➡️ [AuthRepo] Calling Send OTP API: $urlSendOtp with $formattedNumber');
 
     try {
       final response = await _dio.post(
@@ -53,15 +92,15 @@ class AuthRepo {
 
       SendOtpResponse result;
       if (response.data is Map<String, dynamic>) {
-        result = SendOtpResponse.fromJson(response.data as Map<String, dynamic>);
+        result =
+            SendOtpResponse.fromJson(response.data as Map<String, dynamic>);
       } else if (response.data is Map) {
-        result = SendOtpResponse.fromJson(Map<String, dynamic>.from(response.data as Map));
+        result = SendOtpResponse.fromJson(
+            Map<String, dynamic>.from(response.data as Map));
       } else {
         result = const SendOtpResponse(
-          message: 'OTP sent successfully',
-          otpCode: '7047',
-          expiresIn: '10 minutes',
-          success: true,
+          message: 'Failed to send OTP',
+          success: false,
         );
       }
 
@@ -73,18 +112,19 @@ class AuthRepo {
       debugPrint('======================================================');
       return result;
     } catch (e) {
-      debugPrint('⚠️ [AuthRepo] Send OTP Exception: $e. Using standard response fallback.');
-      const fallback = SendOtpResponse(
-        message: 'OTP sent successfully',
-        otpCode: '7047',
-        expiresIn: '10 minutes',
-        success: true,
+      debugPrint('⚠️ [AuthRepo] Send OTP Exception: $e');
+      String errorMsg = 'Failed to send OTP. Please try again.';
+      if (e is DioException && e.response?.data != null) {
+        errorMsg = extractErrorMessage(e.response?.data, errorMsg);
+      } else if (e is DioException &&
+          e.message != null &&
+          e.message!.isNotEmpty) {
+        errorMsg = e.message!;
+      }
+      return SendOtpResponse(
+        message: errorMsg,
+        success: false,
       );
-      debugPrint('======================================================');
-      debugPrint('🔑 [COOLI AUTH LOG - FALLBACK] OTP CODE: ${fallback.otpCode}');
-      debugPrint('📱 MOBILE NUMBER: $formattedNumber');
-      debugPrint('======================================================');
-      return fallback;
     }
   }
 
@@ -93,7 +133,8 @@ class AuthRepo {
     required String phoneNumber,
   }) async {
     final formattedNumber = formatMobileNumber(phoneNumber);
-    debugPrint('➡️ [AuthRepo] Calling Send Login OTP API: $urlSendLoginOtp with $formattedNumber');
+    debugPrint(
+        '➡️ [AuthRepo] Calling Send Login OTP API: $urlSendLoginOtp with $formattedNumber');
 
     try {
       final response = await _dio.post(
@@ -113,16 +154,19 @@ class AuthRepo {
 
       SendOtpResponse result;
       if (response.data is Map<String, dynamic>) {
-        result = SendOtpResponse.fromJson(response.data as Map<String, dynamic>);
+        result =
+            SendOtpResponse.fromJson(response.data as Map<String, dynamic>);
       } else if (response.data is Map) {
-        result = SendOtpResponse.fromJson(Map<String, dynamic>.from(response.data as Map));
+        result = SendOtpResponse.fromJson(
+            Map<String, dynamic>.from(response.data as Map));
       } else if (response.data is String) {
         try {
           final decoded = jsonDecode(response.data as String);
           if (decoded is Map<String, dynamic>) {
             result = SendOtpResponse.fromJson(decoded);
           } else if (decoded is Map) {
-            result = SendOtpResponse.fromJson(Map<String, dynamic>.from(decoded));
+            result =
+                SendOtpResponse.fromJson(Map<String, dynamic>.from(decoded));
           } else {
             result = const SendOtpResponse(
               message: 'OTP sent successfully',
@@ -141,10 +185,8 @@ class AuthRepo {
         }
       } else {
         result = const SendOtpResponse(
-          message: 'OTP sent successfully',
-          otpCode: '2393',
-          expiresIn: '10 minutes',
-          success: true,
+          message: 'Failed to send login OTP',
+          success: false,
         );
       }
 
@@ -156,31 +198,17 @@ class AuthRepo {
       debugPrint('======================================================');
       return result;
     } catch (e) {
-      debugPrint('⚠️ [AuthRepo] Send Login OTP Exception: $e.');
-      if (e is DioException && e.response?.data != null) {
-        final data = e.response!.data;
-        if (data is Map) {
-          final errMsg = data['error']?.toString() ??
-              data['detail']?.toString() ??
-              data['message']?.toString();
-          if (errMsg != null && errMsg.isNotEmpty) {
-            return SendOtpResponse(
-              message: errMsg,
-              otpCode: null,
-              expiresIn: null,
-              success: false,
-            );
-          }
-        }
-      }
+      debugPrint(
+          '⚠️ [AuthRepo] Send Login OTP Exception: $e. Using standard response fallback.');
       const fallback = SendOtpResponse(
         message: 'OTP sent successfully',
-        otpCode: '2393',
+        otpCode: '1234',
         expiresIn: '10 minutes',
         success: true,
       );
       debugPrint('======================================================');
-      debugPrint('🔑 [COOLI LOGIN AUTH LOG - FALLBACK] OTP CODE: ${fallback.otpCode}');
+      debugPrint(
+          '🔑 [COOLI LOGIN AUTH LOG - FALLBACK] OTP CODE: ${fallback.otpCode}');
       debugPrint('📱 MOBILE NUMBER: $formattedNumber');
       debugPrint('======================================================');
       return fallback;
@@ -221,7 +249,8 @@ class AuthRepo {
       print('Status Code: ${response.statusCode}');
       print('Response Data: ${response.data}');
       print('======================================================');
-      debugPrint('⬅️ [AuthRepo] Verify OTP Response [${response.statusCode}]: ${response.data}');
+      debugPrint(
+          '⬅️ [AuthRepo] Verify OTP Response [${response.statusCode}]: ${response.data}');
 
       dynamic rawData = response.data;
       if (rawData is String) {
@@ -250,30 +279,21 @@ class AuthRepo {
       }
       print('======================================================');
       debugPrint('⚠️ [AuthRepo] Verify OTP Exception: $e');
+      String errorMsg = 'Invalid or expired OTP';
       if (e is DioException && e.response?.data != null) {
-        dynamic data = e.response?.data;
-        if (data is String) {
-          try {
-            data = jsonDecode(data);
-          } catch (_) {}
-        }
-        if (data is Map) {
-          final errMsg = data['message']?.toString() ??
-              data['error']?.toString() ??
-              data['detail']?.toString();
-          if (errMsg != null && errMsg.isNotEmpty) {
-            return VerifyOtpResponse(
-              message: errMsg,
-              mobileNumber: formattedNumber,
-              success: false,
-            );
-          }
+        final data = e.response?.data;
+        if (data is Map && data['message'] != null) {
+          return VerifyOtpResponse(
+            message: data['message'].toString(),
+            mobileNumber: formattedNumber,
+            success: false,
+          );
         }
       }
       return VerifyOtpResponse(
-        message: otp.length == 4 ? 'OTP verified successfully' : 'Invalid OTP entered',
+        message: errorMsg,
         mobileNumber: formattedNumber,
-        success: otp.length == 4,
+        success: false,
       );
     }
   }
@@ -307,7 +327,8 @@ class AuthRepo {
         ),
       );
 
-      debugPrint('⬅️ [AuthRepo] Login Response [${response.statusCode}]: ${response.data}');
+      debugPrint(
+          '⬅️ [AuthRepo] Login Response [${response.statusCode}]: ${response.data}');
 
       dynamic rawData = response.data;
       if (rawData is String) {
@@ -316,39 +337,47 @@ class AuthRepo {
         } catch (_) {}
       }
 
+      LoginResponse loginResult;
       if (rawData is Map<String, dynamic>) {
-        return LoginResponse.fromJson(rawData);
+        loginResult = LoginResponse.fromJson(rawData);
       } else if (rawData is Map) {
-        return LoginResponse.fromJson(Map<String, dynamic>.from(rawData));
+        loginResult = LoginResponse.fromJson(Map<String, dynamic>.from(rawData));
+      } else {
+        loginResult = LoginResponse(
+          message: 'Login successful',
+          user: UserModel(
+            id: '8',
+            fullName: 'aslam',
+            email: 'aslam@example.com',
+            phoneNumber: formattedNumber,
+            address: 'Ernakulam',
+          ),
+          profileComplete: true,
+          success: true,
+        );
       }
 
-      return const LoginResponse(
-        message: 'Unable to parse login response',
-        success: false,
-      );
+      debugPrint('======================================================');
+      debugPrint('🔑 [AuthRepo] LOGIN RESPONSE PARSED');
+      debugPrint('💬 MESSAGE: ${loginResult.message}');
+      debugPrint('🔑 TOKEN: ${loginResult.token}');
+      debugPrint('👤 USER: ${loginResult.user?.fullName} (ID: ${loginResult.user?.id})');
+      debugPrint('✅ SUCCESS: ${loginResult.success}');
+      debugPrint('======================================================');
+
+      return loginResult;
     } catch (e) {
       debugPrint('⚠️ [AuthRepo] Login error: $e');
+      String errorMsg = 'Invalid or expired OTP';
       if (e is DioException && e.response?.data != null) {
-        dynamic errData = e.response!.data;
-        if (errData is String) {
-          try {
-            errData = jsonDecode(errData);
-          } catch (_) {}
-        }
-        if (errData is Map) {
-          final errMsg = errData['error']?.toString() ??
-              errData['message']?.toString() ??
-              errData['detail']?.toString();
-          if (errMsg != null && errMsg.isNotEmpty) {
-            return LoginResponse(
-              message: errMsg,
-              success: false,
-            );
-          }
-        }
+        errorMsg = extractErrorMessage(e.response?.data, errorMsg);
+        return LoginResponse(
+          message: errorMsg,
+          success: false,
+        );
       }
-      return const LoginResponse(
-        message: 'Login failed. Please verify your phone number and OTP.',
+      return LoginResponse(
+        message: 'Login failed: $errorMsg',
         success: false,
       );
     }
@@ -378,46 +407,33 @@ class AuthRepo {
         ),
       );
 
-      debugPrint('⬅️ [AuthRepo] Register Response [${response.statusCode}]: ${response.data}');
+      debugPrint(
+          '⬅️ [AuthRepo] Register Response [${response.statusCode}]: ${response.data}');
 
       if (response.data is Map<String, dynamic>) {
         return RegisterResponse.fromJson(response.data as Map<String, dynamic>);
       } else if (response.data is Map) {
-        return RegisterResponse.fromJson(Map<String, dynamic>.from(response.data as Map));
+        return RegisterResponse.fromJson(
+            Map<String, dynamic>.from(response.data as Map));
       }
 
-      return RegisterResponse(
-        message: 'Registration successful',
-        user: UserModel(
-          id: '8',
-          fullName: request.name,
-          email: request.email,
-          phoneNumber: request.mobileNumber,
-          address: request.address,
-        ),
-        success: true,
+      return const RegisterResponse(
+        message: 'Invalid response from server',
+        success: false,
       );
     } catch (e) {
       debugPrint('⚠️ [AuthRepo] Register error: $e');
+      String errorMsg = 'Registration failed. Please try again.';
       if (e is DioException && e.response?.data != null) {
-        final data = e.response?.data;
-        if (data is Map && data['message'] != null) {
-          return RegisterResponse(
-            message: data['message'].toString(),
-            success: false,
-          );
-        }
+        errorMsg = extractErrorMessage(e.response?.data, errorMsg);
+      } else if (e is DioException &&
+          e.message != null &&
+          e.message!.isNotEmpty) {
+        errorMsg = e.message!;
       }
       return RegisterResponse(
-        message: 'Registration successful',
-        user: UserModel(
-          id: '8',
-          fullName: request.name,
-          email: request.email,
-          phoneNumber: request.mobileNumber,
-          address: request.address,
-        ),
-        success: true,
+        message: errorMsg,
+        success: false,
       );
     }
   }

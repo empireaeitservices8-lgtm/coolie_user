@@ -6,8 +6,6 @@ import 'package:cooli/features/auth/model/auth_model.dart';
 import 'package:cooli/features/auth/view_model/auth_view_model.dart';
 import 'package:cooli/features/auth/view/register_details_view.dart';
 import 'package:cooli/features/dashboard/view/main_navigation_view.dart';
-import 'package:cooli/features/dashboard/view_model/dashboard_view_model.dart';
-import 'package:cooli/features/profile/view_model/profile_view_model.dart';
 import 'package:cooli/widgets/cooli_widgets.dart';
 
 class OtpVerificationView extends StatefulWidget {
@@ -149,7 +147,8 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
     if (args.isRegisterFlow) {
       // 1. If Register Flow: Verify OTP via POST /auth/verify-otp/, then proceed to enter Name, Address, Email
       final res = await _viewModel.verifyOtp(args.phoneNumber, otp);
-      print('📩 [OtpVerificationView] Verify OTP Response: message=${res.message}, success=${res.success}, mobileNumber=${res.mobileNumber}');
+      debugPrint(
+          '📩 [OtpVerificationView] Verify OTP Response: message=${res.message}, success=${res.success}, mobileNumber=${res.mobileNumber}');
       if (!mounted) return;
 
       if (res.success) {
@@ -182,7 +181,8 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
         args.phoneNumber,
         otp: otp,
       );
-      print('📩 [OtpVerificationView] Login / Verify OTP Response: message=${res.message}, success=${res.success}, user=${res.user?.fullName}');
+      debugPrint(
+          '📩 [OtpVerificationView] Login / Verify OTP Response: message=${res.message}, success=${res.success}, user=${res.user?.fullName}');
       if (!mounted) return;
 
       if (res.success) {
@@ -193,16 +193,7 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
           iconColor: const Color(0xFF10B981),
         );
 
-        if (!mounted) return;
-        try {
-          await context.read<ProfileViewModel>().loadUser();
-          if (!mounted) return;
-          await context.read<DashboardViewModel>().refreshUserData();
-        } catch (e) {
-          debugPrint('Error syncing providers on login: $e');
-        }
-
-        if (!mounted) return;
+        // Always proceed directly to main navigation on login
         Navigator.pushNamedAndRemoveUntil(
           context,
           MainNavigationView.routeName,
@@ -230,8 +221,10 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
     showCooliToast(
       context,
       message: res.message,
-      icon: Icons.mark_email_read_outlined,
-      iconColor: const Color(0xFF3852E8),
+      icon: res.success
+          ? Icons.mark_email_read_outlined
+          : Icons.error_outline_rounded,
+      iconColor: res.success ? const Color(0xFF3852E8) : Colors.redAccent,
     );
   }
 

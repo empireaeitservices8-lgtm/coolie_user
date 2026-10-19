@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cooli/features/auth/model/auth_model.dart';
 import 'package:cooli/features/profile/view_model/profile_view_model.dart';
+import 'package:cooli/features/profile/view/edit_profile_view.dart';
 import 'package:cooli/features/auth/view/login_view.dart';
 import 'package:cooli/services/session_manager.dart';
 import 'package:cooli/utils/cooli_theme.dart';
@@ -32,6 +35,16 @@ class _ProfileViewState extends State<ProfileView> {
         context.read<AddressViewModel>().fetchAddresses();
       }
     });
+  }
+
+  Future<void> _openEditProfile() async {
+    final updated = await Navigator.pushNamed(
+      context,
+      EditProfileView.routeName,
+    );
+    if (updated == true && mounted) {
+      context.read<ProfileViewModel>().loadUser();
+    }
   }
 
   @override
@@ -93,7 +106,6 @@ class _ProfileViewState extends State<ProfileView> {
                 children: [
                   // User Info Card
                   Container(
-                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
@@ -101,89 +113,104 @@ class _ProfileViewState extends State<ProfileView> {
                       border: Border.all(
                           color: CooliColors.border.withValues(alpha: 0.8)),
                     ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 58,
-                          height: 58,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: CooliColors.primaryGradient,
-                            boxShadow: [
-                              BoxShadow(
-                                color:
-                                    CooliColors.primary.withValues(alpha: 0.25),
-                                blurRadius: 10,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: Text(
-                              initials,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Material(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: _openEditProfile,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
                             children: [
-                              Row(
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      displayName,
-                                      style: const TextStyle(
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.w800,
-                                        color: CooliColors.textDark,
-                                        letterSpacing: -0.2,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
+                              Container(
+                                width: 58,
+                                height: 58,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: CooliColors.primaryGradient,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: CooliColors.primary
+                                          .withValues(alpha: 0.25),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 3),
                                     ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  const Icon(
-                                    Icons.verified_rounded,
-                                    size: 16,
-                                    color: CooliColors.primary,
-                                  ),
-                                ],
+                                  ],
+                                ),
+                                child: ClipOval(
+                                  child: _buildProfileAvatar(user, initials),
+                                ),
                               ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.phone_iphone_rounded,
-                                    size: 14,
-                                    color: CooliColors.textMuted,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    displayPhone,
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: CooliColors.textMuted,
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            displayName,
+                                            style: const TextStyle(
+                                              fontSize: 17,
+                                              fontWeight: FontWeight.w800,
+                                              color: CooliColors.textDark,
+                                              letterSpacing: -0.2,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        const Icon(
+                                          Icons.verified_rounded,
+                                          size: 16,
+                                          color: CooliColors.primary,
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.phone_iphone_rounded,
+                                          size: 14,
+                                          color: CooliColors.textMuted,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          displayPhone,
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: CooliColors.textMuted,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: CooliColors.primary
+                                      .withValues(alpha: 0.08),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: IconButton(
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(Icons.edit_outlined,
+                                      color: CooliColors.primary, size: 19),
+                                  tooltip: 'Edit Profile',
+                                  onPressed: _openEditProfile,
+                                ),
                               ),
                             ],
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.edit_outlined,
-                              color: CooliColors.primary, size: 20),
-                          onPressed: () {},
-                        ),
-                      ],
+                      ),
                     ),
                   ),
 
@@ -205,6 +232,14 @@ class _ProfileViewState extends State<ProfileView> {
                     ),
                     child: Column(
                       children: [
+                        _buildMenuItem(
+                          Icons.person_outline_rounded,
+                          'Edit Profile',
+                          CooliColors.primary,
+                          subtitle: 'Name, email, phone & address',
+                          onTap: _openEditProfile,
+                        ),
+                        _buildDivider(),
                         _buildMenuItem(
                           Icons.inventory_2_outlined,
                           'My Orders',
@@ -785,5 +820,42 @@ class _ProfileViewState extends State<ProfileView> {
   Widget _buildDivider() {
     return const Divider(
         height: 1, indent: 52, endIndent: 16, color: CooliColors.borderLight);
+  }
+
+  Widget _buildProfileAvatar(UserModel? user, String initials) {
+    final photo = user?.profilePhoto;
+    if (photo != null && photo.isNotEmpty) {
+      if (File(photo).existsSync()) {
+        return Image.file(
+          File(photo),
+          fit: BoxFit.cover,
+          width: 58,
+          height: 58,
+        );
+      }
+      if (photo.startsWith('http')) {
+        return Image.network(
+          photo,
+          fit: BoxFit.cover,
+          width: 58,
+          height: 58,
+          errorBuilder: (_, __, ___) => _buildInitialsAvatar(initials),
+        );
+      }
+    }
+    return _buildInitialsAvatar(initials);
+  }
+
+  Widget _buildInitialsAvatar(String initials) {
+    return Center(
+      child: Text(
+        initials,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 22,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
   }
 }

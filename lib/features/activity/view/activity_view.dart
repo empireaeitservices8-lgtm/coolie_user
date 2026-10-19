@@ -14,12 +14,10 @@ class ActivityView extends StatefulWidget {
 }
 
 class _ActivityViewState extends State<ActivityView> {
-  late ActivityViewModel _viewModel;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _viewModel = context.read<ActivityViewModel>();
   }
 
   @override

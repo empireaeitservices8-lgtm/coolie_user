@@ -81,21 +81,43 @@ class WebAPIService with WebAPIMixin, MixinAPIProvider {
 
   Dio get dio => _dio;
 
-  Future<bool> initTokenToHeader({bool initToken = true}) =>
-      getTokenFromSharedPref().then((token) {
-        if (token?.isEmpty ?? true) {
-          return true;
-        }
-        if (_dio.options.headers.containsKey('Authorization')) {
-          _dio.options.headers.remove('Authorization');
-        }
-        if (initToken) {
-          _dio.options.headers
-              .putIfAbsent('Authorization', () => 'Bearer $token');
-          debugPrint('Authorization==>${token!}');
-        }
-        return true;
-      });
+  Future<bool> initTokenToHeader({bool initToken = true}) async {
+    final token = await getTokenFromSharedPref();
+    if (token == null || token.trim().isEmpty) {
+      _dio.options.headers.remove('Authorization');
+      return true;
+    }
+    _dio.options.headers.remove('Authorization');
+    if (initToken) {
+      final clean = token.trim();
+      final authHeader = clean.startsWith('Bearer ') || clean.startsWith('Token ')
+          ? clean
+          : 'Bearer $clean';
+      _dio.options.headers['Authorization'] = authHeader;
+      debugPrint('🔑 [WebAPIService] Authorization Header set ==> $authHeader');
+    }
+    return true;
+  }
+
+  /// Manually set the Authorization token on the active Dio client
+  void setToken(String token) {
+    final clean = token.trim();
+    if (clean.isEmpty) {
+      clearToken();
+      return;
+    }
+    final authHeader = clean.startsWith('Bearer ') || clean.startsWith('Token ')
+        ? clean
+        : 'Bearer $clean';
+    _dio.options.headers['Authorization'] = authHeader;
+    debugPrint('🔑 [WebAPIService] Explicit Authorization Header set ==> $authHeader');
+  }
+
+  /// Manually remove the Authorization token from the Dio client
+  void clearToken() {
+    _dio.options.headers.remove('Authorization');
+    debugPrint('🔒 [WebAPIService] Authorization Header cleared');
+  }
 
   ///initialize language code in header
   Future<bool> initLangPrefToHeader() =>

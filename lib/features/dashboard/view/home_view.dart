@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cooli/features/dashboard/view_model/dashboard_view_model.dart';
@@ -53,9 +54,71 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
   String _cachedUserName = SessionManager.inMemoryUserName;
 
+  // Hero Carousel State & Auto-Scroll
+  late final PageController _bannerController;
+  int _currentBannerIndex = 0;
+  Timer? _bannerTimer;
+
+  static const List<_HomeBannerItem> _bannerItems = [
+    _HomeBannerItem(
+      tag: 'EXPRESS LOGISTICS',
+      title: 'Faster Delivery\nfor Your Business',
+      buttonText: 'Ship Now',
+      imagePath: 'assets/images/cooli_truck_splash_hd.png',
+      fallbackImagePath: 'assets/images/splash_truck_clean.png',
+      gradientColors: [Color(0xFFEEF2FF), Color(0xFFE0E7FF)],
+      accentColor: Color(0xFF4F46E5),
+      textColor: Color(0xFF1E1B4B),
+      tagBgColor: Color(0xFFE0E7FF),
+      tagTextColor: Color(0xFF4338CA),
+      routeName: PorterHomeView.routeName,
+    ),
+    _HomeBannerItem(
+      tag: 'CABS & AUTOS',
+      title: 'Instant Rides &\nCity Travel',
+      buttonText: 'Book Ride',
+      imagePath: 'assets/images/dash_ride_car_clean.png',
+      fallbackImagePath: 'assets/images/ride_white_car.png',
+      gradientColors: [Color(0xFFF0FDF4), Color(0xFFDCFCE7)],
+      accentColor: Color(0xFF16A34A),
+      textColor: Color(0xFF14532D),
+      tagBgColor: Color(0xFFDCFCE7),
+      tagTextColor: Color(0xFF15803D),
+      routeName: RideBookingView.routeName,
+    ),
+    _HomeBannerItem(
+      tag: 'INTERCITY FREIGHT',
+      title: 'Full Truckload\nHire & Transport',
+      buttonText: 'Hire Truck',
+      imagePath: 'assets/images/dash_blackbuck_clean.png',
+      fallbackImagePath: 'assets/images/cooli_truck_exact.png',
+      gradientColors: [Color(0xFFF0FDFA), Color(0xFFCCFBF1)],
+      accentColor: Color(0xFF0D9488),
+      textColor: Color(0xFF134E4A),
+      tagBgColor: Color(0xFFCCFBF1),
+      tagTextColor: Color(0xFF0F766E),
+      routeName: BlackbuckFindLoadsView.routeName,
+    ),
+    _HomeBannerItem(
+      tag: 'CONSTRUCTION SUPPLIES',
+      title: 'Order Construction\nMaterials Directly',
+      buttonText: 'Shop Now',
+      imagePath: 'assets/images/dash_ecom_bricks_clean.png',
+      fallbackImagePath: 'assets/images/brick_clean_hd.png',
+      gradientColors: [Color(0xFFFFF7ED), Color(0xFFFFEDD5)],
+      accentColor: Color(0xFFEA580C),
+      textColor: Color(0xFF7C2D12),
+      tagBgColor: Color(0xFFFFEDD5),
+      tagTextColor: Color(0xFFC2410C),
+      routeName: EcommerceHomeView.routeName,
+    ),
+  ];
+
   @override
   void initState() {
     super.initState();
+    _bannerController = PageController();
+    _startBannerTimer();
     _loadInitialUserName();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -223,6 +286,29 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     _handWaveController.forward();
   }
 
+  void _startBannerTimer() {
+    _bannerTimer?.cancel();
+    _bannerTimer = Timer.periodic(const Duration(milliseconds: 3800), (timer) {
+      if (!mounted || !_bannerController.hasClients) return;
+      final nextIndex = (_currentBannerIndex + 1) % _bannerItems.length;
+      _bannerController.animateToPage(
+        nextIndex,
+        duration: const Duration(milliseconds: 550),
+        curve: Curves.easeInOutCubic,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _bannerTimer?.cancel();
+    _bannerController.dispose();
+    _entranceController.dispose();
+    _idleFloatController.dispose();
+    _handWaveController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadInitialUserName() async {
     try {
       final name = await SessionManager().getUserName();
@@ -249,14 +335,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     } catch (e) {
       debugPrint('[HomeView] _loadInitialUserName error: $e');
     }
-  }
-
-  @override
-  void dispose() {
-    _entranceController.dispose();
-    _idleFloatController.dispose();
-    _handWaveController.dispose();
-    super.dispose();
   }
 
   @override
@@ -555,135 +633,212 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
                         const SizedBox(height: 16),
 
-                        // 3. Hero Banner: "Faster Delivery for Your Business" with Floating Animated Truck
+                        // 3. Hero Carousel: 4 Animated Service Banners with Floating Suspension & Indicator Dots
                         FadeTransition(
                           opacity: _heroFade,
                           child: ScaleTransition(
                             scale: _heroScale,
-                            child: GestureDetector(
-                              onTap: () {
-                                Navigator.pushNamed(
-                                    context, PorterHomeView.routeName);
-                              },
-                              child: Container(
-                                width: double.infinity,
-                                height: 140,
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFFEEF2FF),
-                                      Color(0xFFE0E7FF)
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(22),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF4F46E5)
-                                          .withValues(alpha: 0.08),
-                                      blurRadius: 14,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16.0, vertical: 14.0),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        flex: 6,
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            const Text(
-                                              'Faster Delivery\nfor Your Business',
-                                              style: TextStyle(
-                                                color: Color(0xFF1E1B4B),
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w800,
-                                                height: 1.25,
-                                                letterSpacing: -0.3,
-                                              ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  height: 142,
+                                  child: PageView.builder(
+                                    controller: _bannerController,
+                                    onPageChanged: (index) {
+                                      setState(() {
+                                        _currentBannerIndex = index;
+                                      });
+                                    },
+                                    itemCount: _bannerItems.length,
+                                    itemBuilder: (context, index) {
+                                      final item = _bannerItems[index];
+                                      return GestureDetector(
+                                        onTap: () {
+                                          Navigator.pushNamed(
+                                              context, item.routeName);
+                                        },
+                                        child: Container(
+                                          width: double.infinity,
+                                          height: 142,
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: item.gradientColors,
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
                                             ),
-                                            const SizedBox(height: 12),
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 14,
-                                                      vertical: 6),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFF4F46E5),
-                                                borderRadius:
-                                                    BorderRadius.circular(20),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color:
-                                                        const Color(0xFF4F46E5)
-                                                            .withValues(
-                                                                alpha: 0.3),
-                                                    blurRadius: 6,
-                                                    offset: const Offset(0, 2),
-                                                  ),
-                                                ],
+                                            borderRadius:
+                                                BorderRadius.circular(22),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: item.accentColor
+                                                    .withValues(alpha: 0.10),
+                                                blurRadius: 14,
+                                                offset: const Offset(0, 4),
                                               ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: const [
-                                                  Text(
-                                                    'Ship Now',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 11,
-                                                      fontWeight:
-                                                          FontWeight.w700,
+                                            ],
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 16.0,
+                                                vertical: 14.0),
+                                            child: Row(
+                                              children: [
+                                                Expanded(
+                                                  flex: 6,
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment.start,
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment.center,
+                                                    children: [
+                                                      Text(
+                                                        item.title,
+                                                        style: TextStyle(
+                                                          color: item.textColor,
+                                                          fontSize: 16,
+                                                          fontWeight:
+                                                              FontWeight.w800,
+                                                          height: 1.25,
+                                                          letterSpacing: -0.3,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 12),
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                horizontal: 14,
+                                                                vertical: 6),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color:
+                                                              item.accentColor,
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(20),
+                                                          boxShadow: [
+                                                            BoxShadow(
+                                                              color: item
+                                                                  .accentColor
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.3),
+                                                              blurRadius: 6,
+                                                              offset:
+                                                                  const Offset(
+                                                                      0, 2),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        child: Row(
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
+                                                          children: [
+                                                            Text(
+                                                              item.buttonText,
+                                                              style:
+                                                                  const TextStyle(
+                                                                color: Colors
+                                                                    .white,
+                                                                fontSize: 11,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w700,
+                                                              ),
+                                                            ),
+                                                            const SizedBox(
+                                                                width: 4),
+                                                            const Icon(
+                                                              Icons
+                                                                  .arrow_forward_rounded,
+                                                              size: 12,
+                                                              color:
+                                                                  Colors.white,
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                // 3D HD Clean Asset with Floating Suspension Animation
+                                                Expanded(
+                                                  flex: 5,
+                                                  child: Center(
+                                                    child: AnimatedBuilder(
+                                                      animation:
+                                                          _heroTruckFloat,
+                                                      builder:
+                                                          (context, child) =>
+                                                              Transform
+                                                                  .translate(
+                                                        offset: Offset(
+                                                            0,
+                                                            _heroTruckFloat
+                                                                .value),
+                                                        child: child,
+                                                      ),
+                                                      child: Image.asset(
+                                                        item.imagePath,
+                                                        fit: BoxFit.contain,
+                                                        filterQuality:
+                                                            FilterQuality.high,
+                                                        errorBuilder:
+                                                            (_, __, ___) =>
+                                                                item.fallbackImagePath !=
+                                                                        null
+                                                                    ? Image
+                                                                        .asset(
+                                                                        item.fallbackImagePath!,
+                                                                        fit: BoxFit
+                                                                            .contain,
+                                                                      )
+                                                                    : const SizedBox
+                                                                        .shrink(),
+                                                      ),
                                                     ),
                                                   ),
-                                                  SizedBox(width: 4),
-                                                  Icon(
-                                                      Icons
-                                                          .arrow_forward_rounded,
-                                                      size: 12,
-                                                      color: Colors.white),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      // 3D HD Clean Truck Image with Floating Suspension Animation
-                                      Expanded(
-                                        flex: 5,
-                                        child: Center(
-                                          child: AnimatedBuilder(
-                                            animation: _heroTruckFloat,
-                                            builder: (context, child) =>
-                                                Transform.translate(
-                                              offset: Offset(
-                                                  0, _heroTruckFloat.value),
-                                              child: child,
-                                            ),
-                                            child: Image.asset(
-                                              'assets/images/cooli_truck_splash_hd.png',
-                                              fit: BoxFit.contain,
-                                              filterQuality: FilterQuality.high,
-                                              errorBuilder: (_, __, ___) =>
-                                                  Image.asset(
-                                                'assets/images/splash_truck_clean.png',
-                                                fit: BoxFit.contain,
-                                              ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ),
-                                      ),
-                                    ],
+                                      );
+                                    },
                                   ),
                                 ),
-                              ),
+                                const SizedBox(height: 10),
+                                // Modern Animated Carousel Dots Indicator
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: List.generate(
+                                    _bannerItems.length,
+                                    (dotIndex) {
+                                      final isSelected =
+                                          dotIndex == _currentBannerIndex;
+                                      return AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 300),
+                                        curve: Curves.easeInOut,
+                                        margin: const EdgeInsets.symmetric(
+                                            horizontal: 3),
+                                        width: isSelected ? 22 : 6,
+                                        height: 5,
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? _bannerItems[
+                                                      _currentBannerIndex]
+                                                  .accentColor
+                                              : const Color(0xFFCBD5E1),
+                                          borderRadius:
+                                              BorderRadius.circular(3),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -1714,5 +1869,33 @@ class _HomeVehicleListItem {
     required this.service,
     required this.vehicle,
     required this.accentColor,
+  });
+}
+
+class _HomeBannerItem {
+  final String tag;
+  final String title;
+  final String buttonText;
+  final String imagePath;
+  final String? fallbackImagePath;
+  final List<Color> gradientColors;
+  final Color accentColor;
+  final Color textColor;
+  final Color tagBgColor;
+  final Color tagTextColor;
+  final String routeName;
+
+  const _HomeBannerItem({
+    required this.tag,
+    required this.title,
+    required this.buttonText,
+    required this.imagePath,
+    this.fallbackImagePath,
+    required this.gradientColors,
+    required this.accentColor,
+    required this.textColor,
+    required this.tagBgColor,
+    required this.tagTextColor,
+    required this.routeName,
   });
 }
