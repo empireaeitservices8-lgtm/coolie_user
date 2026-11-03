@@ -1,23 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cooli/features/activity/view_model/activity_view_model.dart';
+import 'package:cooli/features/services/model/transport_vehicle_type_model.dart';
+import 'package:cooli/features/services/repo/services_repo.dart';
 import 'package:cooli/features/services/view/service_confirmed_view.dart';
+import 'package:cooli/features/services/view_model/services_view_model.dart';
 import 'package:cooli/features/wallet/view_model/wallet_view_model.dart';
+import 'package:cooli/services/session_manager.dart';
+import 'package:cooli/widgets/cooli_widgets.dart';
 
 class PostTruckRequirementView extends StatefulWidget {
   static const String routeName = '/post-truck-requirement';
   final String? initialTruckType;
   final String? initialWeight;
   final String? initialFare;
+  final String? initialPickupLocation;
+  final String? initialDropLocation;
+  final double? pickupLat;
+  final double? pickupLng;
+  final double? dropLat;
+  final double? dropLng;
 
   const PostTruckRequirementView({
     super.key,
     this.initialTruckType,
     this.initialWeight,
     this.initialFare,
+    this.initialPickupLocation,
+    this.initialDropLocation,
+    this.pickupLat,
+    this.pickupLng,
+    this.dropLat,
+    this.dropLng,
   });
 
   @override
-  State<PostTruckRequirementView> createState() => _PostTruckRequirementViewState();
+  State<PostTruckRequirementView> createState() =>
+      _PostTruckRequirementViewState();
 }
 
 class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
@@ -27,26 +46,80 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
   late String _loadWeight;
   late String _truckType;
   late String _pickupDateTime;
+  late String _pickupDateApi;
+  String _pickupTimeApi = '10:00:00';
   late String _expectedFare;
-  late String _specialRequirements;
   String _paymentMethod = 'Cash on Delivery';
   bool _isFavorite = false;
+  bool _isSubmitting = false;
+  double? _pickupLat;
+  double? _pickupLng;
+  double? _dropLat;
+  double? _dropLng;
+
+  String _cleanDisplayAddress(
+    String? raw, {
+    required String fallback,
+  }) {
+    if (raw == null || raw.trim().isEmpty) return fallback;
+    final meaningful = raw
+        .split(',')
+        .map((s) => s.replaceAll(RegExp(r'\b\d{5,6}\b'), '').trim())
+        .where((s) =>
+            s.isNotEmpty &&
+            s.toLowerCase() != 'india' &&
+            (!RegExp(r'^[0-9A-Za-z/\-]{1,3}$').hasMatch(s) ||
+                !RegExp(r'\d').hasMatch(s)))
+        .toList();
+    if (meaningful.isEmpty) return fallback;
+    return meaningful.join(', ');
+  }
 
   @override
   void initState() {
     super.initState();
-    _pickupLocation = 'Kochi, Kerala';
-    _dropLocation = 'Calicut, Kerala';
+    _pickupLocation = _cleanDisplayAddress(
+      widget.initialPickupLocation,
+      fallback: 'Kakkanad, Keralam',
+    );
+    _dropLocation = _cleanDisplayAddress(
+      widget.initialDropLocation,
+      fallback: 'Bengaluru, Karnataka',
+    );
+    _pickupLat = widget.pickupLat ?? 10.0039;
+    _pickupLng = widget.pickupLng ?? 76.3757;
+    _dropLat = widget.dropLat ?? 12.9716;
+    _dropLng = widget.dropLng ?? 77.5946;
     _materialType = 'Construction Material';
-    _loadWeight = widget.initialWeight ?? '15 Tons';
-    _truckType = widget.initialTruckType ?? 'Open Body (10-20T)';
-    _pickupDateTime = '22 Apr 2025, 10:00 AM';
-    _expectedFare = widget.initialFare != null ? '₹ ${widget.initialFare}' : '₹ 18,000 – 22,000';
-    _specialRequirements = '• Cover required\n• No night travel';
+    _loadWeight = widget.initialWeight ?? '20 Tons';
+    _truckType = widget.initialTruckType ?? 'Open Body (20-30T)';
+    final defaultDate = DateTime.now().add(const Duration(days: 1));
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    _pickupDateTime =
+        '${defaultDate.day} ${months[defaultDate.month - 1]} ${defaultDate.year}, 10:00 AM';
+    _pickupDateApi =
+        '${defaultDate.year}-${defaultDate.month.toString().padLeft(2, '0')}-${defaultDate.day.toString().padLeft(2, '0')}';
+    _expectedFare = widget.initialFare != null
+        ? '₹ ${widget.initialFare}'
+        : '₹ 18,500 – 22,000';
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final uid = await SessionManager().getUserId(fallback: 20);
       if (mounted) {
-        context.read<WalletViewModel>().loadWalletData(userId: 1);
+        context.read<WalletViewModel>().loadWalletData(userId: uid);
       }
     });
   }
@@ -96,14 +169,20 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
                   title: Text(
                     opt,
                     style: TextStyle(
-                      fontWeight: opt == currentValue ? FontWeight.w800 : FontWeight.w500,
-                      color: opt == currentValue ? const Color(0xFF4F46E5) : const Color(0xFF0F172A),
+                      fontWeight: opt == currentValue
+                          ? FontWeight.w800
+                          : FontWeight.w500,
+                      color: opt == currentValue
+                          ? const Color(0xFF4F46E5)
+                          : const Color(0xFF0F172A),
                     ),
                   ),
                   trailing: opt == currentValue
-                      ? const Icon(Icons.check_circle_rounded, color: Color(0xFF4F46E5))
+                      ? const Icon(Icons.check_circle_rounded,
+                          color: Color(0xFF4F46E5))
                       : null,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   onTap: () {
                     onSave(opt);
                     Navigator.pop(context);
@@ -120,7 +199,8 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
             'Update $title',
             style: const TextStyle(
@@ -134,17 +214,20 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
             maxLines: title.contains('Requirements') ? 3 : 1,
             decoration: InputDecoration(
               hintText: 'Enter $title',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                borderSide:
+                    const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
               ),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+              child: const Text('Cancel',
+                  style: TextStyle(color: Color(0xFF64748B))),
             ),
             ElevatedButton(
               onPressed: () {
@@ -155,9 +238,12 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF4F46E5),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+              child: const Text('Save',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w700)),
             ),
           ],
         ),
@@ -207,7 +293,8 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: const Color(0xFFEEF2FF),
                             borderRadius: BorderRadius.circular(12),
@@ -253,7 +340,8 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
                     // 3. Coolie Wallet Option
                     _buildPaymentSelectorTile(
                       title: 'Coolie Wallet',
-                      subtitle: 'Available Balance: ₹${balance.toStringAsFixed(2)}',
+                      subtitle:
+                          'Available Balance: ₹${balance.toStringAsFixed(2)}',
                       icon: Icons.account_balance_wallet_rounded,
                       color: Colors.purple,
                       badge: '₹${balance.toStringAsFixed(0)}',
@@ -295,7 +383,8 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
             setState(() => _paymentMethod = title);
             Navigator.pop(context);
           },
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           leading: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
@@ -317,7 +406,8 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
               if (badge != null) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: Colors.purple.shade50,
                     borderRadius: BorderRadius.circular(6),
@@ -452,21 +542,28 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
         backgroundColor: const Color(0xFFF8FAFC),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A), size: 24),
+          icon: const Icon(Icons.arrow_back_rounded,
+              color: Color(0xFF0F172A), size: 24),
           onPressed: () => Navigator.maybePop(context),
         ),
         actions: [
           IconButton(
             icon: Icon(
-              _isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-              color: _isFavorite ? const Color(0xFFEF4444) : const Color(0xFF475569),
+              _isFavorite
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_border_rounded,
+              color: _isFavorite
+                  ? const Color(0xFFEF4444)
+                  : const Color(0xFF475569),
               size: 24,
             ),
             onPressed: () {
               setState(() => _isFavorite = !_isFavorite);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(_isFavorite ? 'Saved to requirement templates' : 'Removed from templates'),
+                  content: Text(_isFavorite
+                      ? 'Saved to requirement templates'
+                      : 'Removed from templates'),
                   duration: const Duration(seconds: 1),
                 ),
               );
@@ -505,7 +602,8 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -539,7 +637,11 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
                           onTap: () => _editField(
                             title: 'Pickup Location',
                             currentValue: _pickupLocation,
-                            onSave: (v) => setState(() => _pickupLocation = v),
+                            onSave: (v) => setState(() {
+                              _pickupLocation = v;
+                              _pickupLat = null;
+                              _pickupLng = null;
+                            }),
                             options: [
                               'Kochi, Kerala',
                               'Ernakulam South Hub, Kerala',
@@ -557,7 +659,11 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
                           onTap: () => _editField(
                             title: 'Drop Location',
                             currentValue: _dropLocation,
-                            onSave: (v) => setState(() => _dropLocation = v),
+                            onSave: (v) => setState(() {
+                              _dropLocation = v;
+                              _dropLat = null;
+                              _dropLng = null;
+                            }),
                             options: [
                               'Calicut, Kerala',
                               'Bengaluru Logistics Park, KA',
@@ -618,9 +724,9 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
                             currentValue: _truckType,
                             onSave: (v) => setState(() => _truckType = v),
                             options: [
+                              'Multi-Axle (20-32T)',
                               'Open Body (10-20T)',
-                              'Container Box (15-20T)',
-                              'Multi-Axle Trailer (25-32T)',
+                              'Container Box (14-20T)',
                               'Tipper (10-16T)',
                               'Flatbed Heavy (32T+)',
                             ],
@@ -649,11 +755,34 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
                             if (pickedTime == null) return;
                             if (!mounted) return;
                             setState(() {
-                              final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                              final period = pickedTime.period == DayPeriod.am ? 'AM' : 'PM';
-                              final hour = pickedTime.hourOfPeriod == 0 ? 12 : pickedTime.hourOfPeriod;
-                              final minute = pickedTime.minute.toString().padLeft(2, '0');
-                              _pickupDateTime = '${pickedDate.day} ${months[pickedDate.month - 1]} ${pickedDate.year}, $hour:$minute $period';
+                              final months = [
+                                'Jan',
+                                'Feb',
+                                'Mar',
+                                'Apr',
+                                'May',
+                                'Jun',
+                                'Jul',
+                                'Aug',
+                                'Sep',
+                                'Oct',
+                                'Nov',
+                                'Dec'
+                              ];
+                              final period = pickedTime.period == DayPeriod.am
+                                  ? 'AM'
+                                  : 'PM';
+                              final hour = pickedTime.hourOfPeriod == 0
+                                  ? 12
+                                  : pickedTime.hourOfPeriod;
+                              final minute =
+                                  pickedTime.minute.toString().padLeft(2, '0');
+                              _pickupDateTime =
+                                  '${pickedDate.day} ${months[pickedDate.month - 1]} ${pickedDate.year}, $hour:$minute $period';
+                              _pickupDateApi =
+                                  '${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}';
+                              _pickupTimeApi =
+                                  '${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')}:00';
                             });
                           },
                         ),
@@ -677,19 +806,7 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
                           ),
                         ),
 
-                        // 8. Special Requirements
-                        _buildRequirementCard(
-                          icon: Icons.format_list_bulleted_rounded,
-                          label: 'Special Requirements',
-                          value: _specialRequirements,
-                          onTap: () => _editField(
-                            title: 'Special Requirements',
-                            currentValue: _specialRequirements,
-                            onSave: (v) => setState(() => _specialRequirements = v),
-                          ),
-                        ),
-
-                        // 9. Payment Method (Cash, UPI, Wallet)
+                        // 8. Payment Method (Cash, UPI, Wallet)
                         Consumer<WalletViewModel>(
                           builder: (context, walletVM, _) {
                             final balance = walletVM.balance;
@@ -717,120 +834,347 @@ class _PostTruckRequirementViewState extends State<PostTruckRequirementView> {
 
                 // Bottom Action CTA Button
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   color: Colors.transparent,
                   child: SizedBox(
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
-                      onPressed: () async {
-                        if (_paymentMethod == 'Coolie Wallet') {
-                          final walletVM = context.read<WalletViewModel>();
-                          final balance = walletVM.balance;
-                          if (balance < 500) {
-                            showDialog(
-                              context: context,
-                              builder: (dialogCtx) => AlertDialog(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                title: const Text(
-                                  'Insufficient Wallet Balance',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF0F172A),
-                                  ),
-                                ),
-                                content: Text(
-                                  'Your Coolie Wallet balance is ₹${balance.toStringAsFixed(2)}. An advance of ₹500 is required to confirm this truck requirement.',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Color(0xFF475569),
-                                  ),
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.pop(dialogCtx);
-                                      setState(() => _paymentMethod = 'Cash on Delivery');
-                                    },
-                                    child: const Text('Use Cash'),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () => Navigator.pop(dialogCtx),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF4F46E5),
+                      onPressed: _isSubmitting
+                          ? null
+                          : () async {
+                              if (_paymentMethod == 'Coolie Wallet') {
+                                final walletVM =
+                                    context.read<WalletViewModel>();
+                                final balance = walletVM.balance;
+                                if (balance < 500) {
+                                  showDialog(
+                                    context: context,
+                                    builder: (dialogCtx) => AlertDialog(
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(20),
                                       ),
+                                      title: const Text(
+                                        'Insufficient Wallet Balance',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      content: Text(
+                                        'Your Coolie Wallet balance is ₹${balance.toStringAsFixed(2)}. An advance of ₹500 is required to confirm this truck requirement.',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Color(0xFF475569),
+                                        ),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.pop(dialogCtx);
+                                            setState(() => _paymentMethod =
+                                                'Cash on Delivery');
+                                          },
+                                          child: const Text('Use Cash'),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () =>
+                                              Navigator.pop(dialogCtx),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                const Color(0xFF4F46E5),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                          ),
+                                          child: const Text('OK',
+                                              style: TextStyle(
+                                                  color: Colors.white)),
+                                        ),
+                                      ],
                                     ),
-                                    child: const Text('OK', style: TextStyle(color: Colors.white)),
+                                  );
+                                  return;
+                                }
+
+                                // Deduct booking advance from wallet
+                                await walletVM.deductFunds(
+                                  amount: 500,
+                                  title: 'Truck Booking Advance ($_truckType)',
+                                );
+
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        '₹500 advance deducted from Coolie Wallet. Remaining balance: ₹${walletVM.balance.toStringAsFixed(2)}',
+                                      ),
+                                      backgroundColor: const Color(0xFF10B981),
+                                    ),
+                                  );
+                                }
+                              }
+
+                              setState(() => _isSubmitting = true);
+
+                              try {
+                                // 1. Determine user ID
+                                int userId = 20;
+                                try {
+                                  final id = await SessionManager()
+                                      .getLoggedInUserId();
+                                  if (id != null && id > 0) userId = id;
+                                } catch (_) {}
+
+                                // 2. Cities, States & Coordinates
+                                ({String location, String city, String state})
+                                    parseAddress(String raw,
+                                        {required String defaultCity,
+                                        required String defaultState}) {
+                                  if (raw.contains('682303')) {
+                                    return (
+                                      location: 'Kakkanad',
+                                      city: 'Kakkanad',
+                                      state: 'Keralam',
+                                    );
+                                  }
+                                  final parts = raw
+                                      .split(',')
+                                      .map((s) => s
+                                          .replaceAll(
+                                              RegExp(r'\b\d{5,6}\b'), '')
+                                          .trim())
+                                      .where((s) =>
+                                          s.isNotEmpty &&
+                                          s.toLowerCase() != 'india')
+                                      .toList();
+                                  if (parts.isEmpty) {
+                                    return (
+                                      location: defaultCity,
+                                      city: defaultCity,
+                                      state: defaultState,
+                                    );
+                                  }
+                                  final state = parts.length > 1
+                                      ? parts.last
+                                      : defaultState;
+                                  final meaningful = parts
+                                      .where((p) =>
+                                          !RegExp(r'^[0-9A-Za-z/\-]{1,3}$')
+                                              .hasMatch(p) ||
+                                          !RegExp(r'\d').hasMatch(p))
+                                      .toList();
+                                  final city = meaningful.length > 1
+                                      ? meaningful[meaningful.length - 2]
+                                      : (meaningful.isNotEmpty
+                                          ? meaningful.first
+                                          : defaultCity);
+                                  return (
+                                    location: city,
+                                    city: city,
+                                    state: state,
+                                  );
+                                }
+
+                                final pickupParsed = parseAddress(
+                                  _pickupLocation,
+                                  defaultCity: 'Kakkanad',
+                                  defaultState: 'Keralam',
+                                );
+                                final pickupCity = pickupParsed.city;
+                                final pickupState = pickupParsed.state;
+                                final pickupLat = _pickupLat != null
+                                    ? double.parse(
+                                        _pickupLat!.toStringAsFixed(4))
+                                    : 10.0039;
+                                final pickupLng = _pickupLng != null
+                                    ? double.parse(
+                                        _pickupLng!.toStringAsFixed(4))
+                                    : 76.3757;
+
+                                final dropParsed = parseAddress(
+                                  _dropLocation,
+                                  defaultCity: 'Bengaluru',
+                                  defaultState: 'Karnataka',
+                                );
+                                final dropCity = dropParsed.city;
+                                final dropState = dropParsed.state;
+                                final dropLat = _dropLat != null
+                                    ? double.parse(_dropLat!.toStringAsFixed(4))
+                                    : 12.9716;
+                                final dropLng = _dropLng != null
+                                    ? double.parse(_dropLng!.toStringAsFixed(4))
+                                    : 77.5946;
+
+                                // 3. Numeric Weight & Slugs
+                                final weightDigits = _loadWeight.replaceAll(
+                                    RegExp(r'[^0-9.]'), '');
+                                final weightNum =
+                                    double.tryParse(weightDigits) ?? 20.0;
+                                final truckSlug = TransportVehicleTypeModel
+                                    .resolveTruckTypeSlug(_truckType);
+                                final materialSlug = TransportVehicleTypeModel
+                                    .resolveMaterialTypeSlug(_materialType);
+
+                                // 4. Fares (numeric integers)
+                                int fareMin = 18500;
+                                int fareMax = 22000;
+                                final cleanFare =
+                                    _expectedFare.replaceAll('₹', '').trim();
+                                if (cleanFare.contains('–') ||
+                                    cleanFare.contains('-')) {
+                                  final parts =
+                                      cleanFare.split(RegExp(r'[–\-]'));
+                                  if (parts.length >= 2) {
+                                    fareMin = int.tryParse(parts[0].replaceAll(
+                                            RegExp(r'[^0-9]'), '')) ??
+                                        18500;
+                                    fareMax = int.tryParse(parts[1].replaceAll(
+                                            RegExp(r'[^0-9]'), '')) ??
+                                        22000;
+                                  }
+                                } else {
+                                  final parsed = int.tryParse(cleanFare
+                                      .replaceAll(RegExp(r'[^0-9]'), ''));
+                                  if (parsed != null) {
+                                    fareMin = parsed;
+                                    fareMax = parsed;
+                                  }
+                                }
+
+                                final loadData = <String, dynamic>{
+                                  'user': userId,
+                                  'pickup_location': pickupCity,
+                                  'pickup_city': pickupCity,
+                                  'pickup_state': pickupState,
+                                  'pickup_latitude': pickupLat,
+                                  'pickup_longitude': pickupLng,
+                                  'drop_location': dropCity,
+                                  'drop_city': dropCity,
+                                  'drop_state': dropState,
+                                  'drop_latitude': dropLat,
+                                  'drop_longitude': dropLng,
+                                  'material_type': materialSlug,
+                                  'load_weight': weightNum,
+                                  'truck_type': truckSlug,
+                                  'pickup_date': _pickupDateApi,
+                                  'pickup_time': _pickupTimeApi,
+                                  'expected_fare_min': fareMin,
+                                  'expected_fare_max': fareMax,
+                                  'service_type': 'transport',
+                                  'partner_type': 'truck_driver',
+                                };
+
+                                final result = await ServicesRepo()
+                                    .createTransportLoad(loadData);
+
+                                if (!context.mounted) return;
+
+                                if (!result.success) {
+                                  showCooliToast(
+                                    context,
+                                    message: result.message ??
+                                        'Failed to post truck load requirement',
+                                    icon: Icons.error_outline_rounded,
+                                    iconColor: const Color(0xFFEF4444),
+                                  );
+                                  return;
+                                }
+
+                                try {
+                                  context
+                                      .read<ServicesViewModel>()
+                                      .fetchTransportBookings(
+                                          userId: userId);
+                                } catch (_) {}
+                                try {
+                                  context
+                                      .read<ActivityViewModel>()
+                                      .loadActivities();
+                                } catch (_) {}
+
+                                final assignedBookingId =
+                                    result.loadId ??
+                                    result.bookingId ??
+                                    'LOAD-2026-001';
+
+                                showCooliToast(
+                                  context,
+                                  message: result.message ??
+                                      'Truck load requirement posted successfully!',
+                                  icon: Icons.check_circle_rounded,
+                                  iconColor: const Color(0xFF10B981),
+                                );
+
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ServiceConfirmedView(
+                                      bookingId: assignedBookingId,
+                                      truckNumber: 'TN 11 AB 4321',
+                                      driverName: 'Ramesh Kumar',
+                                      driverPhone: '+91 98765 43210',
+                                      pickupTime: _pickupDateTime,
+                                      truckType: _truckType,
+                                      paymentMethod: _paymentMethod,
+                                      load: result.load,
+                                    ),
                                   ),
-                                ],
-                              ),
-                            );
-                            return;
-                          }
-
-                          // Deduct booking advance from wallet
-                          await walletVM.deductFunds(
-                            amount: 500,
-                            title: 'Truck Booking Advance ($_truckType)',
-                          );
-
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  '₹500 advance deducted from Coolie Wallet. Remaining balance: ₹${walletVM.balance.toStringAsFixed(2)}',
-                                ),
-                                backgroundColor: const Color(0xFF10B981),
-                              ),
-                            );
-                          }
-                        }
-
-                        if (!context.mounted) return;
-
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ServiceConfirmedView(
-                              bookingId: 'CL-2025-0422-0018',
-                              truckNumber: 'TN 11 AB 4321',
-                              driverName: 'Ramesh Kumar',
-                              driverPhone: '+91 98765 43210',
-                              pickupTime: _pickupDateTime,
-                              truckType: _truckType,
-                              paymentMethod: _paymentMethod,
-                            ),
-                          ),
-                        );
-                      },
+                                );
+                              } catch (e) {
+                                debugPrint(
+                                    '[PostTruckRequirementView] submit error: $e');
+                                if (!context.mounted) return;
+                                showCooliToast(
+                                  context,
+                                  message:
+                                      'Unable to post load requirement. Please try again.',
+                                  icon: Icons.error_outline_rounded,
+                                  iconColor: const Color(0xFFEF4444),
+                                );
+                              } finally {
+                                if (mounted) {
+                                  setState(() => _isSubmitting = false);
+                                }
+                              }
+                            },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF4F46E5),
                         foregroundColor: Colors.white,
                         elevation: 4,
-                        shadowColor: const Color(0xFF4F46E5).withValues(alpha: 0.4),
+                        shadowColor:
+                            const Color(0xFF4F46E5).withValues(alpha: 0.4),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(28),
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Text(
-                            'Confirm Requirement',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.3,
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: const [
+                                Text(
+                                  'Confirm Requirement',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Icon(Icons.arrow_forward_rounded, size: 20),
+                              ],
                             ),
-                          ),
-                          SizedBox(width: 8),
-                          Icon(Icons.arrow_forward_rounded, size: 20),
-                        ],
-                      ),
                     ),
                   ),
                 ),

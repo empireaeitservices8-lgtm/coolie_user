@@ -111,4 +111,19 @@ class ServicesViewModel extends ViewModel {
       notifyListeners();
     }
   }
+
+  Future<
+      ({
+        bool success,
+        String? loadId,
+        String? bookingId,
+        String? message,
+        BlackbuckLoadModel? load,
+      })> createTransportLoad(Map<String, dynamic> loadData) async {
+    final res = await _repo.createTransportLoad(loadData);
+    if (res.success) {
+      fetchTransportBookings();
+    }
+    return res;
+  }
 }

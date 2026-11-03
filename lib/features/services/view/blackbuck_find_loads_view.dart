@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cooli/utils/cooli_theme.dart';
 import 'package:cooli/widgets/cooli_widgets.dart';
 import 'package:cooli/features/services/view/blackbuck_loads_view.dart';
+import 'package:cooli/features/services/view/blackbuck_vehicle_selection_view.dart';
 import 'package:cooli/features/ride/service/ride_location_service.dart';
 import 'package:cooli/features/ride/view/ride_map_picker_view.dart';
 import 'package:cooli/features/services/repo/services_repo.dart';
@@ -317,6 +318,27 @@ class _BlackbuckFindLoadsViewState extends State<BlackbuckFindLoadsView> {
     );
   }
 
+  void _openPostLoadFlow({String? vehicleName}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BlackbuckVehicleSelectionView(
+          initialVehicleName: vehicleName,
+          pickupLocation: _fromController.text.isNotEmpty &&
+                  !_fromController.text.contains('Locating')
+              ? _fromController.text
+              : null,
+          dropLocation: _toController.text.isNotEmpty
+              ? _toController.text
+              : null,
+          pickupLat: _pickupLat,
+          pickupLng: _pickupLng,
+          dropLat: _dropLat,
+          dropLng: _dropLng,
+        ),
+      ),
+    );
+  }
 
   void _showPremiumModal() {
     showModalBottomSheet(
@@ -876,6 +898,31 @@ class _BlackbuckFindLoadsViewState extends State<BlackbuckFindLoadsView> {
                     showForwardArrow: true,
                     backgroundColor: primaryBlue,
                     onTap: () => _onFindLoadsPressed(),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Option to Post Load Requirement for this Route
+                  OutlinedButton.icon(
+                    onPressed: _openPostLoadFlow,
+                    icon: const Icon(Icons.add_task_rounded,
+                        size: 16, color: Color(0xFF4F46E5)),
+                    label: const Text(
+                      'POST LOAD FOR THIS ROUTE',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF4F46E5),
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 48),
+                      backgroundColor: const Color(0xFFF5F3FF),
+                      side: const BorderSide(color: Color(0xFFC7D2FE), width: 1.2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
                   ),
                 ],
               ),

@@ -35,9 +35,42 @@ class CooliApiLoggerInterceptor extends Interceptor {
         ? '${DateTime.now().difference(startTime).inMilliseconds}ms'
         : 'N/A';
 
+    final uriStr = response.requestOptions.uri.toString();
+    final methodStr = response.requestOptions.method.toUpperCase();
+    bool hasPayloadError = false;
+    String? payloadErrorDetail;
+
+    if (response.data is Map) {
+      final map = response.data as Map;
+      final errField = map['error'] ??
+          map['errors'] ??
+          map['partner_error'] ??
+          map['sync_error'] ??
+          map['detail'];
+      if (errField != null || map['success'] == false) {
+        hasPayloadError = true;
+        payloadErrorDetail = errField?.toString() ?? map['message']?.toString();
+      } else if (methodStr == 'POST' &&
+          uriStr.endsWith('/transport/loads/') &&
+          (map['message']?.toString().trim().toLowerCase() !=
+              'load posted successfully')) {
+        hasPayloadError = true;
+        payloadErrorDetail =
+            'Expected message "Load posted successfully", got "${map['message']}"';
+      }
+    }
+
     debugPrint('╔════════════════════════════════════════════════════════════════════════════════');
-    debugPrint('║ ✅ [API RESPONSE - ${response.statusCode} ${response.statusMessage ?? 'OK'}] ${response.requestOptions.method.toUpperCase()} ${response.requestOptions.uri}');
-    debugPrint('║ ⏱️ Elapsed Time: $duration');
+    if (hasPayloadError) {
+      debugPrint('║ ❌ [API PAYLOAD ERROR - ${response.statusCode}] $methodStr $uriStr');
+      debugPrint('║ ⏱️ Elapsed Time: $duration');
+      if (payloadErrorDetail != null) {
+        debugPrint('║ ⚠️ Payload Error: $payloadErrorDetail');
+      }
+    } else {
+      debugPrint('║ ✅ [API RESPONSE - ${response.statusCode} ${response.statusMessage ?? 'OK'}] $methodStr $uriStr');
+      debugPrint('║ ⏱️ Elapsed Time: $duration');
+    }
     debugPrint('║ 📥 Response Body: ${response.data}');
     debugPrint('╚════════════════════════════════════════════════════════════════════════════════');
 

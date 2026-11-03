@@ -26,34 +26,108 @@ class TransportVehicleTypeModel {
   /// Map any display name, icon name, or alias to one of the backend supported truck types:
   /// open_body_10_20t, open_body_20_30t, container_20ft, container_40ft, tipper, flatbed
   static String resolveTruckTypeSlug(String input) {
-    final lower = input.toLowerCase().trim().replaceAll(' ', '_');
-    if (lower == 'tipper' || lower.contains('tipper')) {
+    final clean = input.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+
+    // 1. Tipper
+    if (clean.contains('tipper')) {
       return 'tipper';
     }
-    if (lower.contains('flatbed') || lower.contains('trailer')) {
+
+    // 2. Flatbed
+    if (clean.contains('flatbed')) {
       return 'flatbed';
     }
-    if (lower.contains('container_40') ||
-        lower.contains('40ft') ||
-        lower.contains('40_ft')) {
+
+    // 3. Container 40ft
+    if (clean.contains('40') &&
+        (clean.contains('container') ||
+            clean.contains('ft') ||
+            clean.contains('box'))) {
       return 'container_40ft';
     }
-    if (lower.contains('container')) {
+
+    // 4. Container 20ft
+    if (clean.contains('container')) {
       return 'container_20ft';
     }
-    if (lower.contains('20_30') ||
-        lower.contains('multi_axle') ||
-        lower.contains('large')) {
+
+    // 5. Multi-Axle / 20-30T / 20-32T / 25-32T / Large open body
+    if (clean.contains('multi') ||
+        clean.contains('axle') ||
+        clean.contains('20_30') ||
+        clean.contains('20_32') ||
+        clean.contains('25_32') ||
+        clean.contains('32t') ||
+        clean.contains('large')) {
       return 'open_body_20_30t';
     }
-    if (lower.contains('10_20') ||
-        lower.contains('open') ||
-        lower.contains('medium') ||
-        lower.contains('small') ||
-        lower.contains('truck')) {
+
+    // 6. Trailer (heavy trailer / flatbed)
+    if (clean.contains('trailer')) {
+      return 'flatbed';
+    }
+
+    // 7. Open Body 10-20T / Open Truck / Medium / Small / Lorry
+    if (clean.contains('10_20') ||
+        clean.contains('open') ||
+        clean.contains('medium') ||
+        clean.contains('small') ||
+        clean.contains('truck') ||
+        clean.contains('lorry')) {
       return 'open_body_10_20t';
     }
-    return lower;
+
+    // 8. If clean input exactly matches one of backend's 6 choices
+    const validChoices = {
+      'open_body_10_20t',
+      'open_body_20_30t',
+      'container_20ft',
+      'container_40ft',
+      'tipper',
+      'flatbed',
+    };
+    if (validChoices.contains(clean)) {
+      return clean;
+    }
+
+    // Guaranteed safe fallback valid choice
+    return 'open_body_10_20t';
+  }
+
+  /// Map any display material name to one of the backend supported choices:
+  /// construction_material, cement, steel, sand, other
+  static String resolveMaterialTypeSlug(String input) {
+    final lower = input.toLowerCase();
+    if (lower.contains('cement')) {
+      return 'cement';
+    }
+    if (lower.contains('steel') ||
+        lower.contains('iron') ||
+        lower.contains('metal') ||
+        lower.contains('coil')) {
+      return 'steel';
+    }
+    if (lower.contains('sand') ||
+        lower.contains('aggregate') ||
+        lower.contains('stone') ||
+        lower.contains('gravel')) {
+      return 'sand';
+    }
+    if (lower.contains('construct')) {
+      return 'construction_material';
+    }
+    const validChoices = {
+      'construction_material',
+      'cement',
+      'steel',
+      'sand',
+      'other',
+    };
+    final clean = lower.trim().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+    if (validChoices.contains(clean)) {
+      return clean;
+    }
+    return 'other';
   }
 
   factory TransportVehicleTypeModel.fromJson(Map<String, dynamic> json) {

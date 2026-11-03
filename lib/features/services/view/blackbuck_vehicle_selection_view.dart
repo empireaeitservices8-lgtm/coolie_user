@@ -4,7 +4,24 @@ import 'package:cooli/features/services/view/post_truck_requirement_view.dart';
 class BlackbuckVehicleSelectionView extends StatefulWidget {
   static const String routeName = '/blackbuck-vehicle-selection';
 
-  const BlackbuckVehicleSelectionView({super.key});
+  final String? initialVehicleName;
+  final String? pickupLocation;
+  final String? dropLocation;
+  final double? pickupLat;
+  final double? pickupLng;
+  final double? dropLat;
+  final double? dropLng;
+
+  const BlackbuckVehicleSelectionView({
+    super.key,
+    this.initialVehicleName,
+    this.pickupLocation,
+    this.dropLocation,
+    this.pickupLat,
+    this.pickupLng,
+    this.dropLat,
+    this.dropLng,
+  });
 
   @override
   State<BlackbuckVehicleSelectionView> createState() =>
@@ -73,6 +90,26 @@ class _BlackbuckVehicleSelectionViewState
     },
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialVehicleName != null &&
+        widget.initialVehicleName!.trim().isNotEmpty) {
+      final name = widget.initialVehicleName!.toLowerCase();
+      final idx = _vehicles.indexWhere((v) {
+        final title = (v['title'] as String? ?? '').toLowerCase();
+        final shortName = (v['shortName'] as String? ?? '').toLowerCase();
+        return title.contains(name) ||
+            shortName.contains(name) ||
+            name.contains(shortName) ||
+            name.contains(title);
+      });
+      if (idx >= 0) {
+        _selectedVehicleIndex = idx;
+      }
+    }
+  }
+
   void _proceedToRequirements() {
     final vehicle = _vehicles[_selectedVehicleIndex];
     Navigator.push(
@@ -82,6 +119,12 @@ class _BlackbuckVehicleSelectionViewState
           initialTruckType: vehicle['shortName'] as String,
           initialWeight: vehicle['capacity'] as String,
           initialFare: vehicle['fare'] as String,
+          initialPickupLocation: widget.pickupLocation,
+          initialDropLocation: widget.dropLocation,
+          pickupLat: widget.pickupLat,
+          pickupLng: widget.pickupLng,
+          dropLat: widget.dropLat,
+          dropLng: widget.dropLng,
         ),
       ),
     );

@@ -805,8 +805,23 @@ class BlackbuckLoadModel {
 
   static String _formatTruckType(String raw) {
     final lower = raw.toLowerCase();
-    if (lower.contains('open_body')) {
+    if (lower.contains('20_30') || lower.contains('multi')) {
+      return 'Multi-Axle (20-32T)';
+    }
+    if (lower.contains('10_20') || lower.contains('open_body')) {
       return 'Open Body (10-20T)';
+    }
+    if (lower.contains('container_40') || lower.contains('40ft')) {
+      return 'Container Box (40ft)';
+    }
+    if (lower.contains('container')) {
+      return 'Container Box (14-20T)';
+    }
+    if (lower.contains('tipper')) {
+      return 'Tipper (10-16T)';
+    }
+    if (lower.contains('flatbed') || lower.contains('trailer')) {
+      return 'Flatbed Heavy (32T+)';
     }
     return raw
         .replaceAll('_', ' ')
@@ -817,6 +832,22 @@ class BlackbuckLoadModel {
   }
 
   static String _formatMaterial(String raw) {
+    final lower = raw.toLowerCase();
+    if (lower == 'construction_material' || lower.contains('construction')) {
+      return 'Construction Material';
+    }
+    if (lower == 'cement') {
+      return 'Cement & Aggregates';
+    }
+    if (lower == 'steel') {
+      return 'Steel & Iron Coils';
+    }
+    if (lower == 'sand') {
+      return 'Sand & Aggregates';
+    }
+    if (lower == 'other') {
+      return 'General Cargo';
+    }
     return raw
         .replaceAll('_', ' ')
         .split(' ')

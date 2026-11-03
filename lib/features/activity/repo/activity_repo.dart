@@ -14,7 +14,7 @@ class ActivityRepo {
   Future<List<ActivityModel>> fetchLiveActivities({int userId = 1}) async {
     final List<ActivityModel> activities = [];
 
-    // 1. E-Commerce Orders: GET /orders/list/?user_id=1
+    // 1. E-Commerce Orders: GET /orders/list/?user_id=<userId>
     try {
       final res = await _dio.get(
         '$urlOrdersList?user_id=$userId',
@@ -45,7 +45,10 @@ class ActivityRepo {
       debugPrint('[ActivityRepo] orders error: $e');
     }
 
-    // 2. Transport Bookings: GET /transport/bookings/list/?user_id=1
+    // 2. Transport Bookings & Posted Loads:
+    //    GET /transport/bookings/list/?user_id=<userId>
+    //    GET /transport/loads/list/?user_id=<userId>
+    final Set<String> bookedLoadIds = {};
     try {
       final res = await _dio.get(
         '$urlTransportBookingsList?user_id=$userId',
@@ -54,6 +57,7 @@ class ActivityRepo {
       if (res.data is List) {
         for (final item in (res.data as List)) {
           final loadId = item['load_details']?['load_id']?.toString() ?? 'LOAD-001';
+          bookedLoadIds.add(loadId);
           final pickup = item['load_details']?['pickup_location']?.toString() ?? 'Kochi';
           final drop = item['load_details']?['drop_location']?.toString() ?? 'Calicut';
           activities.add(ActivityModel(
@@ -70,10 +74,56 @@ class ActivityRepo {
         }
       }
     } catch (e) {
-      debugPrint('[ActivityRepo] transport error: $e');
+      debugPrint('[ActivityRepo] transport bookings error: $e');
     }
 
-    // 3. Ride Bookings: GET /ride/bookings/list/?user_id=1
+    try {
+      final loadsRes = await _dio.get(
+        '$urlTransportLoadsList?user_id=$userId',
+        options: Options(headers: {'Accept': 'application/json'}),
+      );
+      if (loadsRes.data is List) {
+        final loadsList = List<dynamic>.from(loadsRes.data as List)
+          ..sort((a, b) {
+            final idA = int.tryParse((a is Map ? a['id'] : null)?.toString() ?? '') ?? 0;
+            final idB = int.tryParse((b is Map ? b['id'] : null)?.toString() ?? '') ?? 0;
+            return idB.compareTo(idA);
+          });
+        for (final item in loadsList) {
+          if (item is! Map) continue;
+          final loadId = item['load_id']?.toString() ?? 'LOAD-${item['id']}';
+          if (bookedLoadIds.contains(loadId)) continue;
+          final pickup =
+              (item['pickup_city'] ?? item['pickup_location'] ?? 'Kakkanad')
+                  .toString();
+          final drop =
+              (item['drop_city'] ?? item['drop_location'] ?? 'Bengaluru')
+                  .toString();
+          final amount =
+              double.tryParse(item['expected_fare_min']?.toString() ?? '') ??
+                  18500.0;
+          final dateStr = item['pickup_date']?.toString() ??
+              (item['created_at'] != null
+                  ? item['created_at'].toString().split('T').first
+                  : 'Today');
+          activities.add(ActivityModel(
+            id: loadId,
+            title: 'Truck Load #$loadId',
+            subtitle: '$pickup -> $drop',
+            date: dateStr,
+            status: (item['status'] ?? 'Bidding').toString().toUpperCase(),
+            amount: amount,
+            type: ActivityType.service,
+            icon: Icons.local_shipping_rounded,
+            statusColor: CooliColors.warning,
+          ));
+        }
+      }
+    } catch (e) {
+      debugPrint('[ActivityRepo] transport loads error: $e');
+    }
+
+    // 3. Ride Bookings: GET /ride/bookings/list/?user_id=<userId>
     try {
       final res = await _dio.get(
         '$urlRideBookingsList?user_id=$userId',
@@ -99,7 +149,7 @@ class ActivityRepo {
       debugPrint('[ActivityRepo] ride error: $e');
     }
 
-    // 4. Goods Bookings: GET /goods/bookings/list/?user_id=1
+    // 4. Goods Bookings: GET /goods/bookings/list/?user_id=<userId>
     try {
       final res = await _dio.get(
         '$urlGoodsBookingsList?user_id=$userId',

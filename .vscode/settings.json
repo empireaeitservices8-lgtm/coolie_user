@@ -1,3 +1,6 @@
 {
-  "dart.flutterSdkPath": ".fvm/versions/3.29.3"
-}
+  "dart.flutterSdkPath": "C:\\flutter\\flutter_windows_3.10.4-stable\\flutter",
+  "dart.flutterRunAdditionalArgs": [
+    "--android-skip-build-dependency-validation"
+  ]
+}

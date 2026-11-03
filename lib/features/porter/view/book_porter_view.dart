@@ -810,13 +810,12 @@ class _BookPorterViewState extends State<BookPorterView> {
 
   void _showBookingSheet(BuildContext ctx, PorterViewModel vm) {
     if (_pickupCtrl.text.isEmpty || _dropCtrl.text.isEmpty) {
+      ScaffoldMessenger.of(ctx).hideCurrentSnackBar();
       ScaffoldMessenger.of(ctx).showSnackBar(
         SnackBar(
           content: const Text('Please select both pickup and drop locations.'),
           backgroundColor: const Color(0xFFEF4444),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          behavior: SnackBarBehavior.fixed,
         ),
       );
       return;
@@ -1406,6 +1405,8 @@ class _BookPorterViewState extends State<BookPorterView> {
   }
 
   Future<void> _submitBooking(BuildContext ctx, PorterViewModel vm) async {
+    if (vm.isCreatingBooking) return;
+
     final contactName = _pickupContactCtrl.text.trim();
     final pickupMobile = _pickupMobileCtrl.text.trim();
     final receiverName = _receiverNameCtrl.text.trim();
@@ -1416,13 +1417,12 @@ class _BookPorterViewState extends State<BookPorterView> {
         pickupMobile.isEmpty ||
         receiverName.isEmpty ||
         receiverMobile.isEmpty) {
+      ScaffoldMessenger.of(ctx).hideCurrentSnackBar();
       ScaffoldMessenger.of(ctx).showSnackBar(
         SnackBar(
           content: const Text('Please fill in contact person & mobile fields.'),
           backgroundColor: const Color(0xFFEF4444),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          behavior: SnackBarBehavior.fixed,
         ),
       );
       return;
@@ -1430,30 +1430,46 @@ class _BookPorterViewState extends State<BookPorterView> {
 
     // ── Phone format validation ──────────────────────────────────────────────
     if (!_isValidPhone(pickupMobile)) {
+      ScaffoldMessenger.of(ctx).hideCurrentSnackBar();
       ScaffoldMessenger.of(ctx).showSnackBar(
         SnackBar(
           content: const Text(
               'Pickup mobile number is not valid. Enter 7–15 digits.'),
           backgroundColor: const Color(0xFFEF4444),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          behavior: SnackBarBehavior.fixed,
         ),
       );
       return;
     }
     if (!_isValidPhone(receiverMobile)) {
+      ScaffoldMessenger.of(ctx).hideCurrentSnackBar();
       ScaffoldMessenger.of(ctx).showSnackBar(
         SnackBar(
           content: const Text(
               'Receiver mobile number is not valid. Enter 7–15 digits.'),
           backgroundColor: const Color(0xFFEF4444),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          behavior: SnackBarBehavior.fixed,
         ),
       );
       return;
+    }
+
+    // ── Approximate weight validation (if entered) ───────────────────────────
+    final weightStr = _weightCtrl.text.trim();
+    if (weightStr.isNotEmpty) {
+      final parsedW = double.tryParse(weightStr);
+      if (parsedW == null || parsedW <= 0) {
+        ScaffoldMessenger.of(ctx).hideCurrentSnackBar();
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(
+            content: const Text(
+                'Please enter a valid weight in kg (greater than 0).'),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.fixed,
+          ),
+        );
+        return;
+      }
     }
 
     // Combine dial code + digits → full number for the API
@@ -1517,13 +1533,12 @@ class _BookPorterViewState extends State<BookPorterView> {
       final errorMsg = vm.bookingError?.isNotEmpty == true
           ? vm.bookingError!
           : 'Booking failed. Please try again.';
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMsg),
           backgroundColor: const Color(0xFFEF4444),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          behavior: SnackBarBehavior.fixed,
         ),
       );
     }
@@ -1598,18 +1613,6 @@ class _BookPorterViewState extends State<BookPorterView> {
           const SizedBox(height: 12),
           ...children,
         ],
-      ),
-    );
-  }
-
-  Widget _sheetSectionLabel(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w800,
-        color: Color(0xFF334155),
-        letterSpacing: -0.1,
       ),
     );
   }
@@ -1976,57 +1979,6 @@ class _BookPorterViewState extends State<BookPorterView> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _sheetField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    required String hint,
-    required TextInputType keyboardType,
-  }) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(icon, size: 18, color: const Color(0xFF94A3B8)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              keyboardType: keyboardType,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF0F172A),
-                height: 1.3,
-              ),
-              decoration: InputDecoration(
-                hintText: hint,
-                hintStyle: const TextStyle(
-                  fontSize: 13.5,
-                  color: Color(0xFFB0BAC8),
-                  fontWeight: FontWeight.w400,
-                  height: 1.3,
-                ),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                isCollapsed: true,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 

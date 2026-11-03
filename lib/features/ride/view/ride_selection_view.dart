@@ -209,6 +209,7 @@ class _RideSelectionViewState extends State<RideSelectionView> {
   }
 
   bool _initializedArgs = false;
+  bool _isSubmittingBooking = false;
 
   @override
   void initState() {
@@ -253,114 +254,121 @@ class _RideSelectionViewState extends State<RideSelectionView> {
   }
 
   Future<void> _proceedToSearching(RideOption selectedOption) async {
-    final walletVM = context.read<WalletViewModel>();
-    final isWallet = _selectedPayment == 'Coolie Wallet';
+    if (_isSubmittingBooking) return;
+    setState(() => _isSubmittingBooking = true);
 
-    if (isWallet && walletVM.balance < selectedOption.fare) {
-      showCooliToast(
-        context,
-        message:
-            'Insufficient wallet balance (Available: ₹${walletVM.balance.toStringAsFixed(0)}). Please top up or choose Cash / UPI.',
-        icon: Icons.warning_amber_rounded,
-        iconColor: CooliColors.danger,
-      );
-      return;
-    }
+    try {
+      final walletVM = context.read<WalletViewModel>();
+      final isWallet = _selectedPayment == 'Coolie Wallet';
 
-    final paymentMethod =
-        isWallet ? 'wallet' : (_selectedPayment == 'Cash' ? 'cash' : 'upi');
-
-    // Fire booking to live API: POST http://coolie.pythonanywhere.com/api/ride/bookings/
-    final response = await _viewModel.createBooking(
-      selectedOption,
-      paymentMethod: paymentMethod,
-    );
-
-    if (!mounted) return;
-
-    if (response != null && response.booking != null) {
-      if (isWallet) {
-        await walletVM.deductFunds(
-          amount: selectedOption.fare,
-          title: 'Ride Booking (${selectedOption.name})',
+      if (isWallet && walletVM.balance < selectedOption.fare) {
+        showCooliToast(
+          context,
+          message:
+              'Insufficient wallet balance (Available: ₹${walletVM.balance.toStringAsFixed(0)}). Please top up or choose Cash / UPI.',
+          icon: Icons.warning_amber_rounded,
+          iconColor: CooliColors.danger,
         );
+        return;
       }
 
+      final paymentMethod =
+          isWallet ? 'wallet' : (_selectedPayment == 'Cash' ? 'cash' : 'upi');
+
+      // Fire booking to live API: POST http://coolie.pythonanywhere.com/api/ride/bookings/
+      final response = await _viewModel.createBooking(
+        selectedOption,
+        paymentMethod: paymentMethod,
+      );
+
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle_rounded,
-                  color: Colors.white, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Booking #${response.booking!.id} confirmed ($paymentMethod)! Finding nearby drivers...',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600, color: Colors.white),
+      if (response != null && response.booking != null) {
+        if (isWallet) {
+          await walletVM.deductFunds(
+            amount: selectedOption.fare,
+            title: 'Ride Booking (${selectedOption.name})',
+          );
+        }
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded,
+                    color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Booking #${response.booking!.id} confirmed ($paymentMethod)! Finding nearby drivers...',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, color: Colors.white),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 2),
           ),
-          backgroundColor: const Color(0xFF10B981),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    } else if (_viewModel.bookingError != null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.info_outline_rounded,
-                  color: Colors.white, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  _viewModel.bookingError!,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w500, color: Colors.white),
+        );
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RideSearchingDriverView(
+              selectedOption: selectedOption,
+              bookingData: response.booking,
+              bookingId: response.booking!.id,
+              pickupLocation: _viewModel.pickupLocation.isNotEmpty
+                  ? _viewModel.pickupLocation
+                  : '',
+              dropLocation:
+                  _viewModel.dropLocation.isNotEmpty ? _viewModel.dropLocation : '',
+              pickupLat: _viewModel.pickupLat ?? 12.9716,
+              pickupLng: _viewModel.pickupLng ?? 77.5946,
+              dropLat: _viewModel.dropLat ?? 12.9784,
+              dropLng: _viewModel.dropLng ?? 77.6408,
+              fare: selectedOption.fare,
+              paymentMethod: _selectedPayment,
+            ),
+          ),
+        );
+      } else if (_viewModel.bookingError != null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded,
+                    color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _viewModel.bookingError!,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w500, color: Colors.white),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 3),
           ),
-          backgroundColor: const Color(0xFFEF4444),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          duration: const Duration(seconds: 3),
-        ),
-      );
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmittingBooking = false);
+      }
     }
-
-    if (!mounted) return;
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => RideSearchingDriverView(
-          selectedOption: selectedOption,
-          bookingData: response?.booking,
-          bookingId: response?.booking?.id,
-          pickupLocation: _viewModel.pickupLocation.isNotEmpty
-              ? _viewModel.pickupLocation
-              : '',
-          dropLocation:
-              _viewModel.dropLocation.isNotEmpty ? _viewModel.dropLocation : '',
-          pickupLat: _viewModel.pickupLat ?? 12.9716,
-          pickupLng: _viewModel.pickupLng ?? 77.5946,
-          dropLat: _viewModel.dropLat ?? 12.9784,
-          dropLng: _viewModel.dropLng ?? 77.6408,
-          fare: selectedOption.fare,
-          paymentMethod: _selectedPayment,
-        ),
-      ),
-    );
   }
 
   @override
@@ -873,7 +881,8 @@ class _RideSelectionViewState extends State<RideSelectionView> {
                         width: double.infinity,
                         height: 52,
                         child: ElevatedButton(
-                          onPressed: (selectedOption == null ||
+                          onPressed: (_isSubmittingBooking ||
+                                  selectedOption == null ||
                                   vm.isCalculatingFare ||
                                   vm.isCreatingBooking)
                               ? null

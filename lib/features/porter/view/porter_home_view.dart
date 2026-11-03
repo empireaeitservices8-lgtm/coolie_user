@@ -16,9 +16,20 @@ class PorterHomeView extends StatefulWidget {
 
 class _PorterHomeViewState extends State<PorterHomeView> {
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: CooliColors.background,
+    return ScaffoldMessenger(
+      child: Scaffold(
+        backgroundColor: CooliColors.background,
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
@@ -124,8 +135,9 @@ class _PorterHomeViewState extends State<PorterHomeView> {
             );
           },
         ),
-      );
-    }
+      ),
+    );
+  }
 
   Widget _buildOptionCard({
     required String title,

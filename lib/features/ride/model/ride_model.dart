@@ -418,8 +418,10 @@ class RideBookingData {
     'user_mobile': userMobile,
     'vehicle_type_name': vehicleTypeName,
     'vehicle_type_service': vehicleTypeService,
-    'pickup_instructions': pickupInstructions,
-    'drop_instructions': dropInstructions,
+    if (pickupInstructions != null && pickupInstructions!.isNotEmpty)
+      'pickup_instructions': pickupInstructions,
+    if (dropInstructions != null && dropInstructions!.isNotEmpty)
+      'drop_instructions': dropInstructions,
     'driver_name': driverName,
     'driver_mobile': driverMobile,
     'vehicle_number': vehicleNumber,
@@ -542,17 +544,35 @@ class RideBookingResponse {
       bookingData = RideBookingData.fromJson(json);
     }
 
-    final hasError = json.containsKey('error') || json.containsKey('detail');
+    String? fieldError;
+    if (bookingData == null && json.isNotEmpty) {
+      final errors = <String>[];
+      json.forEach((k, v) {
+        if (k != 'message' && k != 'booking' && k != 'success' && k != 'id') {
+          if (v is List) {
+            errors.add('$k: ${v.join(", ")}');
+          } else if (v is String) {
+            errors.add('$k: $v');
+          }
+        }
+      });
+      if (errors.isNotEmpty) {
+        fieldError = errors.join('\n');
+      }
+    }
+
+    final hasError = json.containsKey('error') || json.containsKey('detail') || fieldError != null;
     final msg = json['message']?.toString() ??
         json['error']?.toString() ??
         json['detail']?.toString() ??
+        fieldError ??
         'Ride booking processed';
 
     return RideBookingResponse(
       message: msg,
       booking: bookingData,
       success: !hasError && bookingData != null,
-      error: json['error']?.toString() ?? json['detail']?.toString(),
+      error: json['error']?.toString() ?? json['detail']?.toString() ?? fieldError,
     );
   }
 }

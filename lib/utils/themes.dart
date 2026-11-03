@@ -230,7 +230,7 @@ ThemeData _buildTheme({required Brightness brightness}) {
         color: colorScheme.onInverseSurface,
       ),
       actionTextColor: colorScheme.tertiary,
-      behavior: SnackBarBehavior.floating,
+      behavior: SnackBarBehavior.fixed,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
       ),

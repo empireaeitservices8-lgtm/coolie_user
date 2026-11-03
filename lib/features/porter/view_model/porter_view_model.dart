@@ -18,23 +18,20 @@ class PorterViewModel extends ViewModel {
   PorterVehicleType? _selectedVehicle;
   PorterVehicleType? get selectedVehicle => _selectedVehicle;
 
-  String _pickup = 'Select pickup address';
+  String _pickup = '';
   String get pickup => _pickup;
 
   String _drop = '';
   String get drop => _drop;
 
-  String _itemDetails = 'Furniture, appliances etc.';
+  String _itemDetails = '';
   String get itemDetails => _itemDetails;
 
-  String _dateTime = 'Today, 11:00 AM';
+  String _dateTime = '';
   String get dateTime => _dateTime;
 
-  PorterBookingModel? _currentBooking;
-  PorterBookingModel? get currentBooking => _currentBooking;
-
-  double? _pickupLat = 9.9816;
-  double? _pickupLng = 76.2763;
+  double? _pickupLat;
+  double? _pickupLng;
   double? _dropLat;
   double? _dropLng;
   double? _estimatedFare;
@@ -74,22 +71,15 @@ class PorterViewModel extends ViewModel {
   String? get bookingDetailsError => _bookingDetailsError;
 
   void loadVehicles() async {
-    _vehicles = _repo.getVehicleTypes();
-    if (_vehicles.isNotEmpty) {
-      _selectedVehicle = _vehicles.first;
-    }
-    _currentBooking = _repo.getSampleBooking();
-    notifyListeners();
-
     final live = await _repo.fetchVehicleTypes();
     if (live.isNotEmpty) {
       _vehicles = live;
-      if (_selectedVehicle == null || !_vehicles.contains(_selectedVehicle)) {
+      if (_selectedVehicle == null || !_vehicles.any((v) => v.id == _selectedVehicle!.id)) {
         _selectedVehicle = _vehicles.first;
       }
       notifyListeners();
+      _recalculateFare();
     }
-    _recalculateFare();
   }
 
   void selectVehicle(PorterVehicleType vehicle) {
@@ -230,10 +220,10 @@ class PorterViewModel extends ViewModel {
     _isCreatingBooking = true;
     _bookingError = null;
     notifyListeners();
-
     try {
       final userId = await SessionManager().getUserId();
-      final vId = int.tryParse(_selectedVehicle?.id ?? '1') ?? 1;
+      final fallbackVId = _vehicles.isNotEmpty ? _vehicles.first.id : '15';
+      final vId = int.tryParse(_selectedVehicle?.id ?? fallbackVId) ?? 15;
       final effectiveDist = _distanceKm > 0 ? _distanceKm : 5.0;
       final fare = _estimatedFare ??
           (_selectedVehicle != null
@@ -271,6 +261,12 @@ class PorterViewModel extends ViewModel {
       // Round distance to 2 decimal places (server allows max 10 total digits)
       final distRounded = double.parse(effectiveDist.toStringAsFixed(2));
 
+      final weightTrimmed = approximateWeight.trim();
+      final parsedWeight = double.tryParse(weightTrimmed);
+      final safeWeightStr = (parsedWeight != null && parsedWeight > 0)
+          ? (parsedWeight % 1 == 0 ? parsedWeight.toInt().toString() : parsedWeight.toString())
+          : (weightTrimmed.isNotEmpty && weightTrimmed != '0' ? weightTrimmed : '10');
+
       final payload = <String, dynamic>{
         'user': userId,
         'vehicle_type': vId,
@@ -283,18 +279,15 @@ class PorterViewModel extends ViewModel {
         'receiver_mobile_number': sanitizedReceiverMobile,
         'delivery_instructions': deliveryInstructions,
         'goods_category':
-            goodsCategory.isNotEmpty ? goodsCategory : _itemDetails,
-        'approximate_weight': double.tryParse(approximateWeight) ?? 0.0,
-        'number_of_items': numberOfItems,
+            goodsCategory.trim().isNotEmpty ? goodsCategory.trim() : 'General Goods',
+        'approximate_weight': safeWeightStr,
+        'number_of_items': numberOfItems > 0 ? numberOfItems : 1,
         'loading_requirement': loadingRequired,
         'unloading_requirement': unloadingRequired,
         'special_instructions': specialInstructions,
         'distance_km': distRounded,
         'estimated_fare': double.parse(fare.toStringAsFixed(2)),
       };
-      if (scheduledPickupTime != null && scheduledPickupTime.isNotEmpty) {
-        payload['scheduled_pickup_time'] = scheduledPickupTime;
-      }
 
       final result = await _repo.createGoodsBooking(payload);
       final enrichedResult = Map<String, dynamic>.from(result);
@@ -331,7 +324,17 @@ class PorterViewModel extends ViewModel {
             errorMsg = messages.join('\n');
           }
         } else if (data is String && data.isNotEmpty) {
-          errorMsg = data;
+          if (data.contains('<html') || data.contains('<!DOCTYPE')) {
+            if (data.contains('approximate_weight')) {
+              errorMsg = 'Please provide a valid approximate weight.';
+            } else if (data.contains('IntegrityError')) {
+              errorMsg = 'Server database integrity error. Please verify booking details.';
+            } else {
+              errorMsg = 'Server error (${e.response?.statusCode ?? 500}). Please try again.';
+            }
+          } else {
+            errorMsg = data;
+          }
         } else if (e.message != null && e.message!.isNotEmpty) {
           errorMsg = e.message!;
         }

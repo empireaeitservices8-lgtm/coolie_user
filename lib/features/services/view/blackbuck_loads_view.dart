@@ -6,6 +6,7 @@ import 'package:cooli/features/services/model/blackbuck_load_model.dart';
 import 'package:cooli/features/services/model/transport_vehicle_type_model.dart';
 import 'package:cooli/features/services/repo/services_repo.dart';
 import 'package:cooli/features/services/view/blackbuck_load_details_view.dart';
+import 'package:cooli/features/services/view/blackbuck_vehicle_selection_view.dart';
 import 'package:cooli/features/services/view/create_bid_bottom_sheet.dart';
 import 'package:cooli/services/session_manager.dart';
 import 'package:cooli/features/ride/service/ride_location_service.dart';
@@ -184,15 +185,17 @@ class _BlackbuckLoadsViewState extends State<BlackbuckLoadsView> {
               }
             }
             for (final l in _allLoads) {
-              if (l.loadsFrom.isNotEmpty && !_subLocations.contains(l.loadsFrom)) {
+              if (l.loadsFrom.isNotEmpty &&
+                  !_subLocations.contains(l.loadsFrom)) {
                 _subLocations.add(l.loadsFrom);
               }
             }
           });
 
           if (showToast) {
-            final displayName =
-                result.filters?.truckTypeDisplay ?? _selectedTruckType ?? truckTypeSlug;
+            final displayName = result.filters?.truckTypeDisplay ??
+                _selectedTruckType ??
+                truckTypeSlug;
             showCooliToast(
               context,
               message: result.count > 0
@@ -252,6 +255,7 @@ class _BlackbuckLoadsViewState extends State<BlackbuckLoadsView> {
   Future<void> _loadLiveLoads() async {
     setState(() => _isLoading = true);
     try {
+      final userId = await SessionManager().getUserId(fallback: 1);
       if (_isLocationSearch && _activeLat != null && _activeLng != null) {
         final locResult = await ServicesRepo().fetchTransportLoadsByLocation(
           latitude: _activeLat!,
@@ -259,30 +263,42 @@ class _BlackbuckLoadsViewState extends State<BlackbuckLoadsView> {
           radiusKm: _activeRadiusKm,
           locationType: _activeLocationType,
         );
+        final userLoads =
+            await ServicesRepo().fetchTransportLoads(userId: userId);
 
         if (mounted) {
+          final merged = <BlackbuckLoadModel>[];
+          final seenIds = <String>{};
           if (locResult != null) {
-            setState(() {
-              _locationResultCount = locResult.count;
-              _allLoads = locResult.results;
-              _subLocations.clear();
-              _subLocations.add('All');
-              for (final l in _allLoads) {
-                if (!_subLocations.contains(l.loadsFrom) &&
-                    l.loadsFrom.isNotEmpty) {
-                  _subLocations.add(l.loadsFrom);
-                }
+            for (final l in locResult.results) {
+              if (seenIds.add(l.id)) {
+                merged.add(l);
               }
-            });
-          } else {
-            setState(() {
-              _locationResultCount = 0;
-              _allLoads = [];
-            });
+            }
           }
+          for (final l in userLoads) {
+            if (seenIds.add(l.id)) {
+              merged.add(l);
+            }
+          }
+          merged.sort((a, b) => (b.numericId ?? 0).compareTo(a.numericId ?? 0));
+          setState(() {
+            _locationResultCount =
+                locResult != null && locResult.count > merged.length
+                    ? locResult.count
+                    : merged.length;
+            _allLoads = merged;
+            _subLocations.clear();
+            _subLocations.add('All');
+            for (final l in _allLoads) {
+              if (!_subLocations.contains(l.loadsFrom) &&
+                  l.loadsFrom.isNotEmpty) {
+                _subLocations.add(l.loadsFrom);
+              }
+            }
+          });
         }
       } else {
-        final userId = await SessionManager().getUserId(fallback: 1);
         final liveLoads =
             await ServicesRepo().fetchTransportLoads(userId: userId);
         if (mounted && liveLoads.isNotEmpty) {
@@ -294,7 +310,8 @@ class _BlackbuckLoadsViewState extends State<BlackbuckLoadsView> {
                 _subLocations.add(l.loadsFrom);
               }
             }
-            if (widget.initialRoute == null && liveLoads.first.route.isNotEmpty) {
+            if (widget.initialRoute == null &&
+                liveLoads.first.route.isNotEmpty) {
               _selectedRoute = liveLoads.first.route;
             }
           });
@@ -354,9 +371,8 @@ class _BlackbuckLoadsViewState extends State<BlackbuckLoadsView> {
         });
         _loadLiveLoads();
       } else if (result is LocationResult) {
-        final address = result.fullAddress.isNotEmpty
-            ? result.fullAddress
-            : result.title;
+        final address =
+            result.fullAddress.isNotEmpty ? result.fullAddress : result.title;
         setState(() {
           if (isPickup) {
             _activeSearchAddress = address;
@@ -396,6 +412,25 @@ class _BlackbuckLoadsViewState extends State<BlackbuckLoadsView> {
     _loadLiveLoads();
   }
 
+  Future<void> _openPostLoadFlow({String? vehicleName}) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BlackbuckVehicleSelectionView(
+          initialVehicleName: vehicleName ?? _selectedTruckType,
+          pickupLocation: _activeSearchAddress,
+          dropLocation: _activeDropAddress,
+          pickupLat: _activeLat,
+          pickupLng: _activeLng,
+          dropLat: _activeDropLat,
+          dropLng: _activeDropLng,
+        ),
+      ),
+    );
+    if (mounted) {
+      _loadLiveLoads();
+    }
+  }
 
   bool _matchesSelectedTruck(BlackbuckLoadModel load, String selected) {
     final sel = selected.toLowerCase().trim();
@@ -454,7 +489,8 @@ class _BlackbuckLoadsViewState extends State<BlackbuckLoadsView> {
       final matchesLocation = _selectedLoadsFrom == 'All' ||
           load.loadsFrom.toLowerCase() == _selectedLoadsFrom.toLowerCase() ||
           (load.pickupCity != null &&
-              load.pickupCity!.toLowerCase() == _selectedLoadsFrom.toLowerCase());
+              load.pickupCity!.toLowerCase() ==
+                  _selectedLoadsFrom.toLowerCase());
 
       // If filtered by backend API using truck_type, all loads in _allLoads already match
       if (_selectedTruckTypeSlug != null) {
@@ -957,7 +993,8 @@ class _BlackbuckLoadsViewState extends State<BlackbuckLoadsView> {
                                   vertical: 5,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? primaryBlue : Colors.white,
+                                  color:
+                                      isSelected ? primaryBlue : Colors.white,
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
                                     color: isSelected
@@ -966,7 +1003,8 @@ class _BlackbuckLoadsViewState extends State<BlackbuckLoadsView> {
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.03),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.03),
                                       blurRadius: 3,
                                       offset: const Offset(0, 1),
                                     ),
@@ -1376,6 +1414,18 @@ class _BlackbuckLoadsViewState extends State<BlackbuckLoadsView> {
                     ),
                     onPressed: () => _changeLocationOnMap(isPickup: true),
                   ),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.add_task_rounded, size: 16),
+                    label: const Text('Post Load Requirement'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4F46E5),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: _openPostLoadFlow,
+                  ),
                 ],
               ),
               const SizedBox(height: 14),
@@ -1523,7 +1573,8 @@ class _BlackbuckLoadsViewState extends State<BlackbuckLoadsView> {
           child: SizedBox(
             width: 24,
             height: 24,
-            child: CircularProgressIndicator(strokeWidth: 2, color: primaryBlue),
+            child:
+                CircularProgressIndicator(strokeWidth: 2, color: primaryBlue),
           ),
         ),
       );
@@ -1578,7 +1629,8 @@ class _BlackbuckLoadsViewState extends State<BlackbuckLoadsView> {
                         child: Icon(
                           type.iconData,
                           size: 22,
-                          color: isSelected ? primaryBlue : CooliColors.textMuted,
+                          color:
+                              isSelected ? primaryBlue : CooliColors.textMuted,
                         ),
                       ),
                       if (isSelected)
@@ -1620,7 +1672,8 @@ class _BlackbuckLoadsViewState extends State<BlackbuckLoadsView> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 9,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w500,
                       color: isSelected ? primaryBlue : CooliColors.textLight,
                     ),
                   ),
@@ -1859,7 +1912,8 @@ class _BlackbuckLoadsViewState extends State<BlackbuckLoadsView> {
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
-                          if (_isLocationSearch && load.distanceInKm != null) ...[
+                          if (_isLocationSearch &&
+                              load.distanceInKm != null) ...[
                             const SizedBox(height: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(

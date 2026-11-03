@@ -34,31 +34,54 @@ class _BlackbuckLoadDetailsViewState extends State<BlackbuckLoadDetailsView> {
   }
 
   Future<void> _fetchBookingDetails() async {
-    final bookingIdToFetch = widget.bookingId ??
-        _load.bookingId ??
-        'CL-20261005-4950';
+    final explicitBookingId = widget.bookingId ?? _load.bookingId;
+    final loadIdCandidate =
+        (explicitBookingId != null && explicitBookingId.startsWith('LOAD-'))
+            ? explicitBookingId
+            : _load.id;
 
     setState(() => _isLoading = true);
-    final booking = await ServicesRepo().fetchBookingDetail(bookingIdToFetch);
-    if (!mounted) return;
 
-    if (booking != null) {
-      setState(() {
-        _load = booking;
-        _isLoading = false;
-      });
-    } else {
-      // Fallback: if booking wasn't found, try fetching load detail
-      if (_load.id.isNotEmpty) {
-        final loadDetail = await ServicesRepo().fetchLoadDetail(_load.id);
-        if (mounted && loadDetail != null) {
-          setState(() {
-            _load = loadDetail;
-            _isLoading = false;
-          });
-          return;
-        }
+    if (explicitBookingId != null &&
+        explicitBookingId.isNotEmpty &&
+        !explicitBookingId.startsWith('LOAD-')) {
+      final booking =
+          await ServicesRepo().fetchBookingDetail(explicitBookingId);
+      if (!mounted) return;
+      if (booking != null) {
+        setState(() {
+          _load = booking;
+          _isLoading = false;
+        });
+        return;
       }
+    }
+
+    if (loadIdCandidate.isNotEmpty) {
+      final loadDetail = await ServicesRepo().fetchLoadDetail(loadIdCandidate);
+      if (!mounted) return;
+      if (loadDetail != null) {
+        setState(() {
+          _load = loadDetail;
+          _isLoading = false;
+        });
+        return;
+      }
+    }
+
+    if (widget.load == null) {
+      final fallbackBooking =
+          await ServicesRepo().fetchBookingDetail('CL-20261005-4950');
+      if (mounted && fallbackBooking != null) {
+        setState(() {
+          _load = fallbackBooking;
+          _isLoading = false;
+        });
+        return;
+      }
+    }
+
+    if (mounted) {
       setState(() => _isLoading = false);
     }
   }
@@ -127,7 +150,8 @@ class _BlackbuckLoadDetailsViewState extends State<BlackbuckLoadDetailsView> {
               ),
               const SizedBox(height: 14),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: CooliColors.surfaceAlt,
                   borderRadius: BorderRadius.circular(10),
@@ -420,7 +444,8 @@ class _BlackbuckLoadDetailsViewState extends State<BlackbuckLoadDetailsView> {
                     );
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(8),
@@ -758,8 +783,7 @@ class _BlackbuckLoadDetailsViewState extends State<BlackbuckLoadDetailsView> {
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(10),
-                          border:
-                              Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
                         child: Row(
                           children: [
@@ -881,8 +905,7 @@ class _BlackbuckLoadDetailsViewState extends State<BlackbuckLoadDetailsView> {
                 ],
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: hasDriver && hasTruck
                       ? const Color(0xFFECFDF5)
@@ -903,7 +926,6 @@ class _BlackbuckLoadDetailsViewState extends State<BlackbuckLoadDetailsView> {
             ],
           ),
           const SizedBox(height: 14),
-
           if (hasDriver || hasTruck) ...[
             Row(
               children: [
@@ -987,7 +1009,6 @@ class _BlackbuckLoadDetailsViewState extends State<BlackbuckLoadDetailsView> {
               ),
             ),
           ],
-
           if (_load.podOtp != null && _load.podOtp!.isNotEmpty) ...[
             const SizedBox(height: 12),
             Container(
@@ -1044,8 +1065,7 @@ class _BlackbuckLoadDetailsViewState extends State<BlackbuckLoadDetailsView> {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(6),
@@ -1284,7 +1304,8 @@ class _BlackbuckLoadDetailsViewState extends State<BlackbuckLoadDetailsView> {
                   onPressed: () {
                     showCooliToast(
                       context,
-                      message: 'Load ${_load.id} is confirmed with ${_load.transporterName}',
+                      message:
+                          'Load ${_load.id} is confirmed with ${_load.transporterName}',
                       icon: Icons.check_circle_outline_rounded,
                       iconColor: CooliColors.success,
                     );
@@ -1296,7 +1317,8 @@ class _BlackbuckLoadDetailsViewState extends State<BlackbuckLoadDetailsView> {
                     ),
                     padding: EdgeInsets.zero,
                   ),
-                  child: const Icon(Icons.share_rounded, color: primaryBlue, size: 20),
+                  child: const Icon(Icons.share_rounded,
+                      color: primaryBlue, size: 20),
                 ),
               ),
             ] else ...[
@@ -1335,8 +1357,7 @@ class _BlackbuckLoadDetailsViewState extends State<BlackbuckLoadDetailsView> {
                   height: 50,
                   child: ElevatedButton.icon(
                     onPressed: () => _makePhoneCall(_load.phoneNumber),
-                    icon: const Icon(Icons.call,
-                        color: Colors.white, size: 18),
+                    icon: const Icon(Icons.call, color: Colors.white, size: 18),
                     label: const Text(
                       'CALL NOW',
                       style: TextStyle(

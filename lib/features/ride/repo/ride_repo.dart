@@ -38,14 +38,16 @@ class RideRepo {
     required double dropLatitude,
     required double dropLongitude,
   }) async {
+    double formatCoord(double val) => double.parse(val.toStringAsFixed(6));
+
     final payload = {
       'pickup_address': pickupAddress,
       'vehicle_type_id': vehicleTypeId,
-      'pickup_latitude': pickupLatitude,
-      'pickup_longitude': pickupLongitude,
+      'pickup_latitude': formatCoord(pickupLatitude),
+      'pickup_longitude': formatCoord(pickupLongitude),
       'drop_address': dropAddress,
-      'drop_latitude': dropLatitude,
-      'drop_longitude': dropLongitude,
+      'drop_latitude': formatCoord(dropLatitude),
+      'drop_longitude': formatCoord(dropLongitude),
     };
     try {
       final response = await _dio.post(
@@ -62,12 +64,52 @@ class RideRepo {
     return null;
   }
 
+  bool _isCreatingBookingInProgress = false;
+
+  static const Set<String> _allowedRideBookingKeys = {
+    'user',
+    'vehicle_type',
+    'pickup_address',
+    'pickup_latitude',
+    'pickup_longitude',
+    'drop_address',
+    'drop_latitude',
+    'drop_longitude',
+    'number_of_passengers',
+  };
+
   /// Create Ride Booking: POST /ride/bookings/
   Future<RideBookingResponse?> createRideBooking(Map<String, dynamic> payload) async {
+    if (_isCreatingBookingInProgress) {
+      debugPrint('[RideRepo] createRideBooking already in flight, avoiding duplicate call.');
+      return null;
+    }
+    _isCreatingBookingInProgress = true;
+
     try {
+      // Retain ONLY the allowed 9 arguments and remove all other arguments
+      final sanitizedPayload = <String, dynamic>{};
+      for (final key in _allowedRideBookingKeys) {
+        if (payload.containsKey(key)) {
+          sanitizedPayload[key] = payload[key];
+        }
+      }
+
+      for (final key in [
+        'pickup_latitude',
+        'pickup_longitude',
+        'drop_latitude',
+        'drop_longitude'
+      ]) {
+        if (sanitizedPayload[key] is num) {
+          sanitizedPayload[key] = double.parse(
+              (sanitizedPayload[key] as num).toDouble().toStringAsFixed(6));
+        }
+      }
+
       final response = await _dio.post(
         urlRideBookings,
-        data: payload,
+        data: sanitizedPayload,
         options: Options(headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -81,6 +123,8 @@ class RideRepo {
       if (e is DioException && e.response?.data != null && e.response!.data is Map) {
         return RideBookingResponse.fromJson(Map<String, dynamic>.from(e.response!.data as Map));
       }
+    } finally {
+      _isCreatingBookingInProgress = false;
     }
     return null;
   }

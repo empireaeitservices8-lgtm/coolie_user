@@ -18,8 +18,8 @@ class ServicesRepo {
         '$urlTransportLoadsList?user_id=$userId',
         options: Options(
           headers: {'Accept': 'application/json'},
-          sendTimeout: const Duration(seconds: 10),
-          receiveTimeout: const Duration(seconds: 10),
+          // sendTimeout: const Duration(seconds: 10),
+          // receiveTimeout: const Duration(seconds: 10),
         ),
       );
 
@@ -81,6 +81,8 @@ class ServicesRepo {
           }
           return BlackbuckLoadModel.fromJson(map);
         }).toList();
+
+        list.sort((a, b) => (b.numericId ?? 0).compareTo(a.numericId ?? 0));
 
         if (list.isNotEmpty) {
           return list;
@@ -212,10 +214,51 @@ class ServicesRepo {
         }
       }
 
-      return rawList
+      final bookings = rawList
           .whereType<Map<String, dynamic>>()
           .map((item) => BlackbuckLoadModel.fromBookingJson(item))
           .toList();
+
+      // Also include user-posted loads from /transport/loads/list/ that don't yet have a booking
+      try {
+        final loadsResponse = await _dio.get(
+          '$urlTransportLoadsList?user_id=$uid',
+          options: Options(
+            headers: {'Accept': 'application/json'},
+            sendTimeout: const Duration(seconds: 10),
+            receiveTimeout: const Duration(seconds: 10),
+          ),
+        );
+        List? loadsRaw;
+        if (loadsResponse.data is List) {
+          loadsRaw = loadsResponse.data as List;
+        } else if (loadsResponse.data is Map<String, dynamic>) {
+          final lMap = loadsResponse.data as Map<String, dynamic>;
+          if (lMap['results'] is List) {
+            loadsRaw = lMap['results'] as List;
+          } else if (lMap['data'] is List) {
+            loadsRaw = lMap['data'] as List;
+          } else if (lMap['loads'] is List) {
+            loadsRaw = lMap['loads'] as List;
+          }
+        }
+        if (loadsRaw != null) {
+          final bookedLoadIds = bookings.map((b) => b.id).toSet();
+          for (final item in loadsRaw.whereType<Map<String, dynamic>>()) {
+            final loadModel = BlackbuckLoadModel.fromJson(item);
+            if (!bookedLoadIds.contains(loadModel.id)) {
+              bookings.add(loadModel);
+              bookedLoadIds.add(loadModel.id);
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint(
+            '[ServicesRepo] fetchTransportBookings loads merge error: $e');
+      }
+
+      bookings.sort((a, b) => (b.numericId ?? 0).compareTo(a.numericId ?? 0));
+      return bookings;
     } catch (e) {
       debugPrint('[ServicesRepo] fetchTransportBookings error: $e');
     }
@@ -257,7 +300,8 @@ class ServicesRepo {
         ),
       );
       if (response.data is Map<String, dynamic>) {
-        return BlackbuckLoadModel.fromJson(response.data as Map<String, dynamic>);
+        return BlackbuckLoadModel.fromJson(
+            response.data as Map<String, dynamic>);
       }
     } catch (e) {
       debugPrint('[ServicesRepo] fetchLoadDetail error: $e');
@@ -321,8 +365,7 @@ class ServicesRepo {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         String msg = 'Bid submitted successfully';
-        if (response.data is Map &&
-            (response.data as Map)['message'] != null) {
+        if (response.data is Map && (response.data as Map)['message'] != null) {
           msg = (response.data as Map)['message'].toString();
         }
         return (success: true, message: msg);
@@ -360,18 +403,421 @@ class ServicesRepo {
     }
   }
 
+  /// Sanitize and format payload to match Django REST Framework /api/transport/loads/ schema:
+  /// {
+  ///   "customer_id": 1,
+  ///   "pickup_location": "Kochi",
+  ///   "pickup_city": "Kochi",
+  ///   "pickup_state": "Kerala",
+  ///   "pickup_latitude": 9.9312,
+  ///   "pickup_longitude": 76.2673,
+  ///   "drop_location": "Calicut",
+  ///   "drop_city": "Calicut",
+  ///   "drop_state": "Kerala",
+  ///   "drop_latitude": 11.2588,
+  ///   "drop_longitude": 75.7804,
+  ///   "material_type": "construction_material",
+  ///   "load_weight": 15.0,
+  ///   "truck_type": "open_body_10_20t",
+  ///   "pickup_date": "2026-10-10",
+  ///   "pickup_time": "10:00:00",
+  ///   "expected_fare_min": 18000,
+  ///   "expected_fare_max": 22000,
+  ///   "service_type": "transport",
+  ///   "partner_type": "truck_driver"
+  /// }
+  Map<String, dynamic> sanitizeTransportLoadData(Map<String, dynamic> input) {
+    // 1. User ID
+    final rawUserId = input['user'] ?? input['customer_id'] ?? 20;
+    final userId = int.tryParse(rawUserId.toString()) ?? 20;
+
+    String normalizeState(String s, String fallback) {
+      final clean = s.replaceAll(RegExp(r'\b\d{5,6}\b'), '').trim();
+      if (clean.isEmpty || RegExp(r'^\d+$').hasMatch(clean)) return fallback;
+      final upper = clean.toUpperCase();
+      if (upper == 'KL') return 'Keralam';
+      if (upper == 'KA') return 'Karnataka';
+      if (upper == 'TN') return 'Tamil Nadu';
+      if (upper == 'MH') return 'Maharashtra';
+      if (upper == 'DL') return 'Delhi';
+      if (upper == 'TG' || upper == 'TS') return 'Telangana';
+      if (upper == 'AP') return 'Andhra Pradesh';
+      return clean;
+    }
+
+    ({String state, double lat, double lng})? lookupKnownCity(String city) {
+      final c = city.toLowerCase().trim();
+      if (c.contains('kakkanad')) {
+        return (state: 'Keralam', lat: 10.0039, lng: 76.3757);
+      }
+      if (c.contains('bengaluru') || c.contains('bangalore')) {
+        return (state: 'Karnataka', lat: 12.9716, lng: 77.5946);
+      }
+      if (c.contains('chennai')) {
+        return (state: 'Tamil Nadu', lat: 13.0827, lng: 80.2707);
+      }
+      if (c.contains('coimbatore')) {
+        return (state: 'Tamil Nadu', lat: 11.0168, lng: 76.9558);
+      }
+      if (c.contains('hyderabad')) {
+        return (state: 'Telangana', lat: 17.3850, lng: 78.4867);
+      }
+      if (c.contains('mumbai')) {
+        return (state: 'Maharashtra', lat: 19.0760, lng: 72.8777);
+      }
+      if (c.contains('delhi')) {
+        return (state: 'Delhi', lat: 28.6139, lng: 77.2090);
+      }
+      if (c.contains('calicut') || c.contains('kozhikode')) {
+        return (state: 'Keralam', lat: 11.2588, lng: 75.7804);
+      }
+      if (c.contains('thrissur')) {
+        return (state: 'Keralam', lat: 10.5276, lng: 76.2144);
+      }
+      if (c.contains('thiruvananthapuram') || c.contains('trivandrum')) {
+        return (state: 'Keralam', lat: 8.5241, lng: 76.9366);
+      }
+      if (c.contains('kottayam')) {
+        return (state: 'Keralam', lat: 9.5916, lng: 76.5222);
+      }
+      if (c.contains('palakkad')) {
+        return (state: 'Keralam', lat: 10.7867, lng: 76.6548);
+      }
+      if (c.contains('kannur')) {
+        return (state: 'Keralam', lat: 11.8745, lng: 75.3704);
+      }
+      if (c.contains('kochi') ||
+          c.contains('ernakulam') ||
+          c.contains('aluva') ||
+          c.contains('edappally') ||
+          c.contains('angamaly')) {
+        return (state: 'Keralam', lat: 9.9312, lng: 76.2673);
+      }
+      return null;
+    }
+
+    // 2. Pickup & Drop Locations, Cities, States, and Coordinates
+    final rawPickupLat =
+        double.tryParse(input['pickup_latitude']?.toString() ?? '');
+    final rawPickupLng =
+        double.tryParse(input['pickup_longitude']?.toString() ?? '');
+    final isKakkanadCoords = rawPickupLat != null &&
+        rawPickupLng != null &&
+        rawPickupLat >= 9.98 &&
+        rawPickupLat <= 10.06 &&
+        rawPickupLng >= 76.33 &&
+        rawPickupLng <= 76.42;
+
+    ({String location, String city, String state}) parseAddress(
+      String raw, {
+      required String defaultCity,
+      required String defaultState,
+    }) {
+      if (raw.contains('682303')) {
+        return (
+          location: 'Kakkanad',
+          city: 'Kakkanad',
+          state: 'Keralam',
+        );
+      }
+      final parts = raw
+          .split(',')
+          .map((s) => s.replaceAll(RegExp(r'\b\d{5,6}\b'), '').trim())
+          .where((s) => s.isNotEmpty && s.toLowerCase() != 'india')
+          .toList();
+      if (parts.isEmpty) {
+        return (
+          location: defaultCity,
+          city: defaultCity,
+          state: defaultState,
+        );
+      }
+      final meaningful = parts
+          .where((p) =>
+              !RegExp(r'^[0-9A-Za-z/\-]{1,3}$').hasMatch(p) ||
+              !RegExp(r'\d').hasMatch(p))
+          .toList();
+      if (meaningful.isEmpty) {
+        return (
+          location: defaultCity,
+          city: defaultCity,
+          state: defaultState,
+        );
+      }
+      final city = meaningful.length > 1
+          ? meaningful[meaningful.length - 2]
+          : meaningful.first;
+      final known = lookupKnownCity(city);
+      final rawState = meaningful.length > 1
+          ? meaningful.last
+          : (known?.state ?? defaultState);
+      final state = normalizeState(rawState, known?.state ?? defaultState);
+      return (
+        location: city,
+        city: city,
+        state: state,
+      );
+    }
+
+    final defaultPickupCity = isKakkanadCoords ? 'Kakkanad' : 'Kakkanad';
+    final rawPickupLoc =
+        input['pickup_location']?.toString() ?? defaultPickupCity;
+    final pickupParsed = parseAddress(
+      rawPickupLoc,
+      defaultCity: defaultPickupCity,
+      defaultState: 'Keralam',
+    );
+    final pickupCity = (input['pickup_city']?.toString().isNotEmpty ?? false)
+        ? parseAddress(
+            input['pickup_city'].toString(),
+            defaultCity: pickupParsed.city,
+            defaultState: pickupParsed.state,
+          ).city
+        : pickupParsed.city;
+    final knownPickup = lookupKnownCity(pickupCity);
+    final pickupState = normalizeState(
+      input['pickup_state']?.toString() ?? '',
+      knownPickup?.state ?? pickupParsed.state,
+    );
+    final pickupLocation = pickupCity;
+    final pickupLat = double.parse(
+      (rawPickupLat ?? knownPickup?.lat ?? 10.0039).toStringAsFixed(4),
+    );
+    final rawAdjPickupLng = (pickupCity.toLowerCase() == 'kakkanad' &&
+            rawPickupLng != null &&
+            (rawPickupLng - 76.3756).abs() < 0.0002)
+        ? 76.3757
+        : rawPickupLng;
+    final pickupLng = double.parse(
+      (rawAdjPickupLng ?? knownPickup?.lng ?? 76.3757).toStringAsFixed(4),
+    );
+
+    final rawDropLoc = input['drop_location']?.toString() ?? 'Bengaluru';
+    final dropParsed = parseAddress(
+      rawDropLoc,
+      defaultCity: 'Bengaluru',
+      defaultState: 'Karnataka',
+    );
+    final dropCity = (input['drop_city']?.toString().isNotEmpty ?? false)
+        ? parseAddress(
+            input['drop_city'].toString(),
+            defaultCity: dropParsed.city,
+            defaultState: dropParsed.state,
+          ).city
+        : dropParsed.city;
+    final knownDrop = lookupKnownCity(dropCity);
+    final dropState = normalizeState(
+      input['drop_state']?.toString() ?? '',
+      knownDrop?.state ?? dropParsed.state,
+    );
+    final dropLocation = dropCity;
+    final rawDropLat =
+        double.tryParse(input['drop_latitude']?.toString() ?? '');
+    final rawDropLng =
+        double.tryParse(input['drop_longitude']?.toString() ?? '');
+    final isDefaultCalicutCoords = rawDropLat != null &&
+        rawDropLng != null &&
+        (rawDropLat - 11.2588).abs() < 0.001 &&
+        (rawDropLng - 75.7804).abs() < 0.001 &&
+        !dropCity.toLowerCase().contains('calicut') &&
+        !dropCity.toLowerCase().contains('kozhikode');
+    final dropLat = double.parse(
+      ((isDefaultCalicutCoords ? knownDrop?.lat : rawDropLat) ??
+              knownDrop?.lat ??
+              12.9716)
+          .toStringAsFixed(4),
+    );
+    final dropLng = double.parse(
+      ((isDefaultCalicutCoords ? knownDrop?.lng : rawDropLng) ??
+              knownDrop?.lng ??
+              77.5946)
+          .toStringAsFixed(4),
+    );
+
+    // 3. Material Type, Load Weight, and Truck Type
+    final rawMaterial =
+        input['material_type']?.toString() ?? 'construction_material';
+    final materialType =
+        TransportVehicleTypeModel.resolveMaterialTypeSlug(rawMaterial);
+
+    final rawWeight = input['load_weight'] ?? input['weight'] ?? 20.0;
+    final weightDigits =
+        rawWeight.toString().replaceAll(RegExp(r'[^0-9.]'), '');
+    final loadWeight = double.tryParse(weightDigits) ?? 20.0;
+
+    final rawTruck = input['truck_type']?.toString() ?? 'open_body_20_30t';
+    final truckType = TransportVehicleTypeModel.resolveTruckTypeSlug(rawTruck);
+
+    // 4. Pickup Date & Time
+    final defaultDate = DateTime.now().toIso8601String().split('T').first;
+    final rawPickupDate =
+        (input['pickup_date'] ?? input['scheduled_pickup_date'] ?? '')
+            .toString()
+            .trim();
+    final pickupDate =
+        rawPickupDate.isNotEmpty ? rawPickupDate : defaultDate;
+    final pickupTime = (input['pickup_time'] ?? '10:00:00').toString();
+
+    // 5. Expected Fares / Budgets (numeric integers)
+    final rawMinFare = input['expected_fare_min'] ?? input['min_budget'];
+    final rawMaxFare = input['expected_fare_max'] ?? input['max_budget'];
+    final expectedFareMin = rawMinFare != null
+        ? (int.tryParse(
+                rawMinFare.toString().replaceAll(RegExp(r'[^0-9]'), '')) ??
+            18500)
+        : 18500;
+    final expectedFareMax = rawMaxFare != null
+        ? (int.tryParse(
+                rawMaxFare.toString().replaceAll(RegExp(r'[^0-9]'), '')) ??
+            22000)
+        : 22000;
+
+    // 6. Service & Partner Type
+    final serviceType = (input['service_type'] ?? 'transport').toString();
+    final partnerType = (input['partner_type'] ?? 'truck_driver').toString();
+
+    return <String, dynamic>{
+      'user': userId,
+      'pickup_location': pickupLocation,
+      'pickup_city': pickupCity,
+      'pickup_state': pickupState,
+      'pickup_latitude': pickupLat,
+      'pickup_longitude': pickupLng,
+      'drop_location': dropLocation,
+      'drop_city': dropCity,
+      'drop_state': dropState,
+      'drop_latitude': dropLat,
+      'drop_longitude': dropLng,
+      'material_type': materialType,
+      'load_weight': loadWeight,
+      'truck_type': truckType,
+      'pickup_date': pickupDate,
+      'pickup_time': pickupTime,
+      'expected_fare_min': expectedFareMin,
+      'expected_fare_max': expectedFareMax,
+      'service_type': serviceType,
+      'partner_type': partnerType,
+    };
+  }
+
   /// Create Transport Load: POST /transport/loads/
-  Future<bool> createTransportLoad(Map<String, dynamic> loadData) async {
+  /// Succeeds strictly when response body contains `message: "Load posted successfully"`
+  /// (not based on HTTP 200/201 status codes).
+  Future<
+      ({
+        bool success,
+        String? loadId,
+        String? bookingId,
+        String? message,
+        BlackbuckLoadModel? load,
+      })> createTransportLoad(Map<String, dynamic> loadData) async {
+    final sanitizedData = sanitizeTransportLoadData(loadData);
     try {
+      debugPrint(
+          '[ServicesRepo] createTransportLoad POST -> $urlTransportLoads');
+      debugPrint('[ServicesRepo] createTransportLoad payload: $sanitizedData');
+
       final response = await _dio.post(
         urlTransportLoads,
-        data: loadData,
-        options: Options(headers: {'Content-Type': 'application/json'}),
+        data: sanitizedData,
+        options: Options(
+          headers: {'Content-Type': 'application/json'},
+          sendTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 15),
+        ),
       );
-      return response.statusCode == 200 || response.statusCode == 201;
+
+      debugPrint(
+          '[ServicesRepo] createTransportLoad response (${response.statusCode}): ${response.data}');
+
+      final Map<String, dynamic>? data = response.data is Map
+          ? Map<String, dynamic>.from(response.data as Map)
+          : null;
+      final String serverMessage = data?['message']?.toString().trim() ?? '';
+      final dynamic backendError = data?['error'] ??
+          data?['errors'] ??
+          data?['partner_error'] ??
+          data?['sync_error'] ??
+          data?['detail'];
+
+      final bool isMessageSuccess =
+          serverMessage.toLowerCase() == 'load posted successfully' &&
+              backendError == null;
+
+      if (isMessageSuccess && data != null) {
+        final Map<String, dynamic> loadObj = data['load'] is Map
+            ? Map<String, dynamic>.from(data['load'] as Map)
+            : data;
+        final String? loadId = loadObj['load_id']?.toString() ??
+            loadObj['id']?.toString() ??
+            data['load_id']?.toString() ??
+            data['id']?.toString();
+        final String? bookingId = loadObj['booking_id']?.toString() ??
+            data['booking_id']?.toString() ??
+            data['booking']?.toString() ??
+            loadId;
+        BlackbuckLoadModel? createdLoad;
+        try {
+          createdLoad = BlackbuckLoadModel.fromJson(loadObj);
+        } catch (parseErr) {
+          debugPrint(
+              '⚠️ [ServicesRepo] createTransportLoad model parse error: $parseErr');
+        }
+        return (
+          success: true,
+          loadId: loadId,
+          bookingId: bookingId,
+          message: serverMessage,
+          load: createdLoad,
+        );
+      }
+
+      final String failureReason = backendError != null
+          ? backendError.toString()
+          : (serverMessage.isNotEmpty
+              ? serverMessage
+              : 'Expected "Load posted successfully" from server, got: ${response.data}');
+
+      debugPrint(
+          '❌ [ServicesRepo] createTransportLoad NOT accepted (HTTP ${response.statusCode}) -> $failureReason | body: ${response.data}');
+
+      return (
+        success: false,
+        loadId: null,
+        bookingId: null,
+        message: failureReason,
+        load: null,
+      );
     } catch (e) {
-      debugPrint('[ServicesRepo] createTransportLoad error: $e');
-      return false;
+      debugPrint('❌ [ServicesRepo] createTransportLoad exception: $e');
+      String errMsg = 'Failed to create transport load requirement';
+      if (e is DioException) {
+        debugPrint(
+            '❌ [ServicesRepo] createTransportLoad DioException status=${e.response?.statusCode}, body=${e.response?.data}');
+        final d = e.response?.data;
+        if (d is Map) {
+          final errorParts = <String>[];
+          d.forEach((key, val) {
+            if (val is List && val.isNotEmpty) {
+              errorParts.add('$key: ${val.join(", ")}');
+            } else if (val != null && val.toString().trim().isNotEmpty) {
+              errorParts.add('$key: $val');
+            }
+          });
+          if (errorParts.isNotEmpty) {
+            errMsg = errorParts.join('; ');
+          }
+        } else if (d != null && d.toString().trim().isNotEmpty) {
+          errMsg = d.toString();
+        }
+      }
+      return (
+        success: false,
+        loadId: null,
+        bookingId: null,
+        message: errMsg,
+        load: null,
+      );
     }
   }
 
@@ -418,12 +864,22 @@ class ServicesRepo {
 
   List<ServiceSubCategory> getSubCategories() {
     return const [
-      ServiceSubCategory(id: 'cleaning', title: 'Cleaning', icon: Icons.cleaning_services_rounded),
-      ServiceSubCategory(id: 'repair', title: 'Repair', icon: Icons.build_rounded),
-      ServiceSubCategory(id: 'moving', title: 'Moving', icon: Icons.inventory_2_rounded),
-      ServiceSubCategory(id: 'beauty', title: 'Beauty', icon: Icons.face_rounded),
-      ServiceSubCategory(id: 'homeservices', title: 'Home Services', icon: Icons.home_repair_service_rounded),
-      ServiceSubCategory(id: 'other', title: 'Other', icon: Icons.more_horiz_rounded),
+      ServiceSubCategory(
+          id: 'cleaning',
+          title: 'Cleaning',
+          icon: Icons.cleaning_services_rounded),
+      ServiceSubCategory(
+          id: 'repair', title: 'Repair', icon: Icons.build_rounded),
+      ServiceSubCategory(
+          id: 'moving', title: 'Moving', icon: Icons.inventory_2_rounded),
+      ServiceSubCategory(
+          id: 'beauty', title: 'Beauty', icon: Icons.face_rounded),
+      ServiceSubCategory(
+          id: 'homeservices',
+          title: 'Home Services',
+          icon: Icons.home_repair_service_rounded),
+      ServiceSubCategory(
+          id: 'other', title: 'Other', icon: Icons.more_horiz_rounded),
     ];
   }
 
@@ -436,7 +892,8 @@ class ServicesRepo {
         rating: 4.8,
         reviewCount: 250,
         startingPrice: 499.0,
-        description: 'Professional deep home cleaning services for a cleaner, sanitized, and healthier home living space.',
+        description:
+            'Professional deep home cleaning services for a cleaner, sanitized, and healthier home living space.',
         includedFeatures: [
           'Living Room Deep Cleaning & Mopping',
           'Bedroom Sanitization & Dusting',
@@ -451,7 +908,8 @@ class ServicesRepo {
         rating: 4.9,
         reviewCount: 180,
         startingPrice: 599.0,
-        description: 'Complete air conditioner filter cleaning, gas refill check, and jet cooling service.',
+        description:
+            'Complete air conditioner filter cleaning, gas refill check, and jet cooling service.',
         includedFeatures: [
           'Filter and Coil Washing',
           'Gas Pressure Leakage Inspection',

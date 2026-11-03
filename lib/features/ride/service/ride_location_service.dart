@@ -175,6 +175,9 @@ class RideLocationService {
 
   /// Regional human-readable fallback when offline - NEVER shows raw coordinates
   static ({String title, String subtitle}) _getRegionFallback(double lat, double lng) {
+    if (lat >= 9.98 && lat <= 10.06 && lng >= 76.33 && lng <= 76.42) {
+      return (title: 'Kakkanad', subtitle: 'Keralam');
+    }
     if (lat >= 9.85 && lat <= 10.15 && lng >= 76.15 && lng <= 76.45) {
       return (title: 'Kochi Area', subtitle: 'Ernakulam, Kerala');
     }
@@ -271,6 +274,22 @@ class RideLocationService {
         }
         if (postal.isNotEmpty && !title.contains(postal) && !subParts.contains(postal)) {
           subParts.add(postal);
+        }
+
+        if (locality.isEmpty && subAdmin.isEmpty && admin.isEmpty) {
+          final fallback = _getRegionFallback(lat, lng);
+          if (RegExp(r'^[0-9A-Za-z/\-]{1,4}$').hasMatch(title)) {
+            title = fallback.title;
+          }
+          if (!subParts.contains(fallback.title) && title != fallback.title) {
+            subParts.insert(0, fallback.title);
+          }
+          if (!subParts.contains(fallback.subtitle)) {
+            subParts.insert(
+              subParts.isNotEmpty ? subParts.length - 1 : 0,
+              fallback.subtitle,
+            );
+          }
         }
 
         if (title.isNotEmpty) {

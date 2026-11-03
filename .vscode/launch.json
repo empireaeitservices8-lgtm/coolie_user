@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "cooli",
+      "request": "launch",
+      "type": "dart",
+      "toolArgs": [
+        "--android-skip-build-dependency-validation"
+      ]
+    },
+    {
+      "name": "cooli (profile mode)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "profile",
+      "toolArgs": [
+        "--android-skip-build-dependency-validation"
+      ]
+    },
+    {
+      "name": "cooli (release mode)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "release",
+      "toolArgs": [
+        "--android-skip-build-dependency-validation"
+      ]
+    }
+  ]
+}

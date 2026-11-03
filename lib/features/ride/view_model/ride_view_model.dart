@@ -83,8 +83,8 @@ class RideViewModel extends ViewModel {
   void setPickup(String location, {double? lat, double? lng}) {
     _pickupLocation = location;
     if (lat != null && lng != null) {
-      _pickupLat = lat;
-      _pickupLng = lng;
+      _pickupLat = double.parse(lat.toStringAsFixed(6));
+      _pickupLng = double.parse(lng.toStringAsFixed(6));
     }
     notifyListeners();
   }
@@ -92,8 +92,8 @@ class RideViewModel extends ViewModel {
   void setDrop(String location, {double? lat, double? lng}) {
     _dropLocation = location;
     if (lat != null && lng != null) {
-      _dropLat = lat;
-      _dropLng = lng;
+      _dropLat = double.parse(lat.toStringAsFixed(6));
+      _dropLng = double.parse(lng.toStringAsFixed(6));
     }
     notifyListeners();
   }
@@ -122,10 +122,16 @@ class RideViewModel extends ViewModel {
         _pickupLocation.isNotEmpty ? _pickupLocation : 'MG Road, Bangalore';
     final dAddress =
         _dropLocation.isNotEmpty ? _dropLocation : 'Indiranagar, Bangalore';
-    final pLat = _pickupLat ?? 12.9716;
-    final pLng = _pickupLng ?? 77.5946;
-    final dLat = _dropLat ?? 12.9784;
-    final dLng = _dropLng ?? 77.6408;
+    final pLat = _pickupLat != null
+        ? double.parse(_pickupLat!.toStringAsFixed(6))
+        : 12.9716;
+    final pLng = _pickupLng != null
+        ? double.parse(_pickupLng!.toStringAsFixed(6))
+        : 77.5946;
+    final dLat =
+        _dropLat != null ? double.parse(_dropLat!.toStringAsFixed(6)) : 12.9784;
+    final dLng =
+        _dropLng != null ? double.parse(_dropLng!.toStringAsFixed(6)) : 77.6408;
     final vId = int.tryParse(option.id) ?? 10;
 
     try {
@@ -191,6 +197,11 @@ class RideViewModel extends ViewModel {
 
   Future<RideBookingResponse?> createBooking(RideOption option,
       {int? customUserId, String? paymentMethod}) async {
+    if (_isCreatingBooking) {
+      debugPrint(
+          '[RideViewModel] createBooking is already in progress, avoiding duplicate call.');
+      return null;
+    }
     _isCreatingBooking = true;
     _bookingError = null;
     notifyListeners();
@@ -205,19 +216,20 @@ class RideViewModel extends ViewModel {
       debugPrint(
           '[RideViewModel] Creating ride booking for logged-in User ID: $effectiveUserId');
 
+      double formatCoord(double val) => double.parse(val.toStringAsFixed(6));
+
       final payload = {
         'user': effectiveUserId,
         'vehicle_type': int.tryParse(option.id) ?? 10,
-        'pickup_address':
-            _pickupLocation.isNotEmpty ? _pickupLocation : 'MG Road, Bangalore',
-        'pickup_latitude': _pickupLat ?? 12.9716,
-        'pickup_longitude': _pickupLng ?? 77.5946,
-        'drop_address':
-            _dropLocation.isNotEmpty ? _dropLocation : 'Indiranagar, Bangalore',
-        'drop_latitude': _dropLat ?? 0.00,
-        'drop_longitude': _dropLng ?? 0.00,
+        'pickup_address': _pickupLocation.isNotEmpty ? _pickupLocation : '',
+        'pickup_latitude':
+            _pickupLat != null ? formatCoord(_pickupLat!) : 12.9716,
+        'pickup_longitude':
+            _pickupLng != null ? formatCoord(_pickupLng!) : 77.5946,
+        'drop_address': _dropLocation.isNotEmpty ? _dropLocation : '',
+        'drop_latitude': _dropLat != null ? formatCoord(_dropLat!) : 0.00,
+        'drop_longitude': _dropLng != null ? formatCoord(_dropLng!) : 0.00,
         'number_of_passengers': int.tryParse(option.capacity) ?? 1,
-        'payment_method': paymentMethod ?? 'cash',
       };
 
       debugPrint(
@@ -282,7 +294,8 @@ class RideViewModel extends ViewModel {
     notifyListeners();
 
     try {
-      final targetUserId = userId ?? await SessionManager().getLoggedInUserId() ?? 1;
+      final targetUserId =
+          userId ?? await SessionManager().getLoggedInUserId() ?? 1;
       _userId = targetUserId;
       final list = await _repo.fetchRideBookings(userId: targetUserId);
       _rideBookings = list;

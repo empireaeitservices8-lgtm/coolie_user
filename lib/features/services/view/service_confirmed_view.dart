@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cooli/features/dashboard/view/main_navigation_view.dart';
+import 'package:cooli/features/services/model/blackbuck_load_model.dart';
+import 'package:cooli/features/services/view/blackbuck_load_details_view.dart';
 import 'package:cooli/features/services/view/blackbuck_track_truck_view.dart';
 
 class ServiceConfirmedView extends StatelessWidget {
@@ -12,6 +14,7 @@ class ServiceConfirmedView extends StatelessWidget {
   final String pickupTime;
   final String? truckType;
   final String paymentMethod;
+  final BlackbuckLoadModel? load;
 
   const ServiceConfirmedView({
     super.key,
@@ -22,6 +25,7 @@ class ServiceConfirmedView extends StatelessWidget {
     this.pickupTime = '22 Apr 2025, 10:00 AM',
     this.truckType,
     this.paymentMethod = 'Cash on Delivery',
+    this.load,
   });
 
   @override
@@ -464,10 +468,14 @@ class ServiceConfirmedView extends StatelessWidget {
                     height: 52,
                     child: OutlinedButton(
                       onPressed: () {
-                        Navigator.pushNamedAndRemoveUntil(
+                        Navigator.push(
                           context,
-                          MainNavigationView.routeName,
-                          (route) => false,
+                          MaterialPageRoute(
+                            builder: (context) => BlackbuckLoadDetailsView(
+                              load: load,
+                              bookingId: bookingId,
+                            ),
+                          ),
                         );
                       },
                       style: OutlinedButton.styleFrom(

@@ -1594,7 +1594,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => const BlackbuckVehicleSelectionView(),
+          builder: (context) => BlackbuckVehicleSelectionView(
+            initialVehicleName: vehicleName,
+          ),
         ),
       );
     }

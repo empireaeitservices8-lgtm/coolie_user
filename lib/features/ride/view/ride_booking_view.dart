@@ -538,30 +538,34 @@ class _RideBookingViewState extends State<RideBookingView> {
 
   void _setPickupLocation(String title, double lat, double lng, {String subtitle = ''}) {
     final cleanTitle = _formatFullAddress(title, subtitle, defaultName: 'Current Location');
+    final formattedLat = double.parse(lat.toStringAsFixed(6));
+    final formattedLng = double.parse(lng.toStringAsFixed(6));
     setState(() {
       _pickupController.text = cleanTitle;
-      _pickupLat = lat;
-      _pickupLng = lng;
+      _pickupLat = formattedLat;
+      _pickupLng = formattedLng;
       _pickupSuggestions = [];
-      _viewModel.setPickup(cleanTitle, lat: lat, lng: lng);
+      _viewModel.setPickup(cleanTitle, lat: formattedLat, lng: formattedLng);
     });
     _updateRouteAndMap();
   }
 
   void _setDropLocation(String title, double lat, double lng, {String subtitle = ''}) {
     final cleanTitle = _formatFullAddress(title, subtitle, defaultName: 'Selected Destination');
+    final formattedLat = double.parse(lat.toStringAsFixed(6));
+    final formattedLng = double.parse(lng.toStringAsFixed(6));
     setState(() {
       _dropController.text = cleanTitle;
-      _dropLat = lat;
-      _dropLng = lng;
+      _dropLat = formattedLat;
+      _dropLng = formattedLng;
       _dropSuggestions = [];
-      _viewModel.setDrop(cleanTitle, lat: lat, lng: lng);
+      _viewModel.setDrop(cleanTitle, lat: formattedLat, lng: formattedLng);
     });
     _saveRecentDestination(
       title: cleanTitle,
       subtitle: subtitle.isNotEmpty ? subtitle : 'Selected Destination',
-      lat: lat,
-      lng: lng,
+      lat: formattedLat,
+      lng: formattedLng,
     );
     _updateRouteAndMap();
   }
@@ -846,10 +850,10 @@ class _RideBookingViewState extends State<RideBookingView> {
       arguments: {
         'pickup': _pickupController.text,
         'drop': _dropController.text,
-        'pickupLat': _pickupLat,
-        'pickupLng': _pickupLng,
-        'dropLat': _dropLat,
-        'dropLng': _dropLng,
+        'pickupLat': _pickupLat != null ? double.parse(_pickupLat!.toStringAsFixed(6)) : null,
+        'pickupLng': _pickupLng != null ? double.parse(_pickupLng!.toStringAsFixed(6)) : null,
+        'dropLat': _dropLat != null ? double.parse(_dropLat!.toStringAsFixed(6)) : null,
+        'dropLng': _dropLng != null ? double.parse(_dropLng!.toStringAsFixed(6)) : null,
       },
     );
   }
