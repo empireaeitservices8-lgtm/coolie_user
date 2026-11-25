@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cooli/features/dashboard/view_model/dashboard_view_model.dart';
 import 'package:cooli/features/ecommerce/view/ecommerce_home_view.dart';
-import 'package:cooli/features/ride/view/ride_selection_view.dart';
+import 'package:cooli/features/ride/view/ride_booking_view.dart';
 import 'package:cooli/features/porter/view/porter_home_view.dart';
 import 'package:cooli/features/services/view/services_home_view.dart';
 import 'package:cooli/features/activity/view/activity_view.dart';
@@ -328,7 +328,7 @@ class HomeView extends StatelessWidget {
                           bgColor: const Color(0xFFF0FDF4),
                           borderColor: const Color(0xFFDCFCE7),
                           textColor: const Color(0xFF15803D),
-                          onTap: () => Navigator.pushNamed(context, RideSelectionView.routeName),
+                          onTap: () => Navigator.pushNamed(context, RideBookingView.routeName),
                         ),
                         // 3. Truck & Courier (Transparent commercial cargo delivery van)
                         _buildServiceCard(

@@ -1,5 +1,6 @@
 import 'package:adaptive_theme/adaptive_theme.dart';
 import 'package:cooli/config/app_config.dart';
+import 'package:cooli/features/ride/view_model/ride_view_model.dart';
 import 'package:cooli/l10n/app_localizations.dart';
 
 import 'package:cooli/utils/extensions.dart';
@@ -37,6 +38,9 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (context) => LanguageProvider(),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => RideViewModel(),
         ),
       ],
       builder: (context, child) => ScreenUtilInit(
